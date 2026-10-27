@@ -21,7 +21,8 @@ export interface DragMove {
 
 /** An interactive tool driven by a viewport drag. */
 export interface DragTool {
-  begin(view: ViewInfo): boolean;
+  /** `press` is where the pointer went down, in canvas pixels; most tools ignore it. */
+  begin(view: ViewInfo, press?: { x: number; y: number }): boolean;
   move(info: DragMove): void;
   /** `final` is where the pointer was released, for tools that act on the whole drag (like the knife's line). */
   end(final?: DragMove): void;
@@ -64,21 +65,26 @@ export abstract class PointDrag implements DragTool {
   ) {}
 
   /** Returns true if this tool takes over the drag. Only orthographic views define a drag plane. */
-  begin(view: ViewInfo): boolean {
+  begin(view: ViewInfo, press: { x: number; y: number } = { x: 0, y: 0 }): boolean {
     if (!view.isOrtho) return false;
-    const ids = this.state.affectedPoints();
+    const ids = this.choosePoints(view, press);
     if (ids.length === 0) return false;
     this.ids = ids;
     this.before = ids.map((i) => [...this.state.mesh.points[i]!] as Vec3);
-    if (!this.start(view)) {
+    if (!this.start(view, press)) {
       this.reset();
       return false;
     }
     return true;
   }
 
+  /** The points this drag acts on. By default the selection (or the whole object); some tools pick by where the press was. */
+  protected choosePoints(_view: ViewInfo, _press: { x: number; y: number }): number[] {
+    return this.state.affectedPoints();
+  }
+
   /** Hook for subclasses to capture pivot, axis, etc. Return false to decline the drag. */
-  protected start(_view: ViewInfo): boolean {
+  protected start(_view: ViewInfo, _press: { x: number; y: number }): boolean {
     return true;
   }
 

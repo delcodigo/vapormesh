@@ -7,7 +7,11 @@ import {
   copySelection,
   cutSelection,
   deleteSelection,
+  AxisDeformTool,
   ExtrudeTool,
+  MagnetTool,
+  PointDragTool,
+  StretchTool,
   KnifeTool,
   flipSelection,
   makePolygon,
@@ -27,6 +31,7 @@ import {
   type ToolName,
 } from '@/modeler';
 import {
+  createDeformPanel,
   createExtrudePanel,
   createBooleanPanel,
   createFileActions,
@@ -34,6 +39,7 @@ import {
   createMirrorPanel,
   createImagesPanel,
   type EditorBridge,
+  type DeformPanel,
   type ExtrudePanel,
   type KnifePanel,
   createNumericPanel,
@@ -77,6 +83,14 @@ const MULTIPLY_TOOLS: [ToolName, string][] = [
   ['extrude', 'Extrude'],
   ['bevel', 'Bevel'],
 ];
+const DEFORM_TOOLS: [ToolName, string][] = [
+  ['stretch', 'Stretch'],
+  ['drag', 'Drag'],
+  ['magnet', 'Magnet'],
+  ['bend', 'Bend'],
+  ['twist', 'Twist'],
+  ['taper', 'Taper'],
+];
 const TOOLS: [ToolName, string][] = [
   ['move', 'Move'],
   ['rotate', 'Rotate'],
@@ -91,6 +105,7 @@ const display = defaultDisplay();
 const requested = new URLSearchParams(location.search).get('view');
 if (VIEW_MODES.some(([m]) => m === requested)) display.mode = requested as ViewMode;
 let knifePanel: KnifePanel | null = null;
+let deformPanel: DeformPanel | null = null;
 let extrudePanel: ExtrudePanel | null = null; // created once the page exists; the tools ask it for their options
 const dragTools: Record<ToolName, DragTool> = {
   move: new MoveTool(state),
@@ -98,6 +113,12 @@ const dragTools: Record<ToolName, DragTool> = {
   size: new SizeTool(state),
   extrude: new ExtrudeTool(state, () => extrudePanel!.options('extrude'), 'Extrude'),
   bevel: new ExtrudeTool(state, () => extrudePanel!.options('bevel'), 'Bevel'),
+  stretch: new StretchTool(state),
+  drag: new PointDragTool(state),
+  magnet: new MagnetTool(state, () => ({ radius: deformPanel!.magnetRadius() })),
+  bend: new AxisDeformTool(state, 'bend', () => deformPanel!.axis(), 'Bend'),
+  twist: new AxisDeformTool(state, 'twist', () => deformPanel!.axis(), 'Twist'),
+  taper: new AxisDeformTool(state, 'taper', () => deformPanel!.axis(), 'Taper'),
   // the tool reports what it did through the status line, which is declared further down
   knife: new KnifeTool(state, () => knifePanel!.options(), (r) => notify(r.message, !r.ok)),
 };
@@ -115,6 +136,8 @@ app.innerHTML = `
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
+      <div class="section">Deform</div>
+      ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <div class="section">Multiply</div>
       ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first">${label}</button>`).join('')}
       <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
@@ -187,6 +210,7 @@ toolButtons.forEach((b) =>
   }),
 );
 const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
+deformPanel = createDeformPanel(state, app.querySelector('.workspace')!);
 extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
@@ -387,9 +411,9 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
     get bandShape() {
       return state.activeTool === 'knife' ? ('line' as const) : ('box' as const);
     },
-    begin: (v, e) => {
+    begin: (v, e, press) => {
       const tool = activeDragTool();
-      return tool ? !e.shiftKey && tool.begin(v) : v.isOrtho;
+      return tool ? !e.shiftKey && tool.begin(v, press) : v.isOrtho;
     },
     move: (i) => activeDragTool()?.move(i),
     end: (i) => {

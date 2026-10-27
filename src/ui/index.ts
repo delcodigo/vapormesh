@@ -9,6 +9,7 @@ export * from './paletteView';
 export * from './uvEditor';
 export * from './paletteEditor';
 export * from './download';
+export * from './deformPanel';
 export * from './extrudePanel';
 export * from './mirrorPanel';
 export * from './knifePanel';

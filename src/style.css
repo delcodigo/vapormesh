@@ -168,6 +168,11 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .pal-info { margin: 3px 0; font: 11px 'Courier New', monospace; color: var(--ink); min-height: 14px; }
 .numeric .numeric-row input[type='text'] + button { margin-left: 4px; flex: none; }
 
+/* deformer options: they show with the tool */
+.numeric.deform { right: 8px; top: 260px; width: 214px; }
+.numeric.deform .numeric-row select { width: 100%; }
+.numeric.deform [hidden] { display: none; }
+
 /* extrude / bevel options: they show with the tool */
 .numeric.extrude { right: 8px; top: 260px; width: 214px; }
 .numeric.extrude .numeric-row select { width: 100%; }

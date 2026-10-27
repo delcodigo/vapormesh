@@ -37,7 +37,8 @@ export interface DragHandler {
   /** What to draw while dragging: a box (selection) or a line (the knife). */
   readonly bandShape?: 'box' | 'line';
   /** Return true to take over the drag (otherwise the viewport navigates). */
-  begin(view: Viewport, e: PointerEvent): boolean;
+  /** `press` is where the pointer went down, in canvas pixels. */
+  begin(view: Viewport, e: PointerEvent, press: { x: number; y: number }): boolean;
   move(info: DragInfo): void;
   end(info: DragInfo): void;
   /** The pointer was cancelled (e.g. focus lost): abandon rather than commit. */
@@ -324,7 +325,7 @@ export class Viewport implements Projector {
       if (!moved) {
         if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < CLICK_SLOP) return;
         moved = true;
-        dragging = button === 0 && (this.dragHandler?.begin(this, e) ?? false);
+        dragging = button === 0 && (this.dragHandler?.begin(this, e, startRel) ?? false);
         banding = dragging && !!this.dragHandler?.rubberBand;
       }
       if (dragging) {

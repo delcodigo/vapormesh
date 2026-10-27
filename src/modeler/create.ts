@@ -129,6 +129,7 @@ export function isValidField(field: FieldSpec, nums: number[]): boolean {
 
 /** Adds a primitive to a layer. Undo cuts the geometry back out and returns to the layer that was active. */
 export class AddPrimitiveCommand implements Command {
+  readonly projectWide = true;
   private size: MeshSize | null = null;
   private previousLayer = 0;
 

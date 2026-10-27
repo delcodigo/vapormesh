@@ -46,6 +46,7 @@ export interface PaletteChangeOptions {
  * updates at once. With `remap`, the images and surface colours are rewritten too, and undo puts all of it back.
  */
 export class SetPaletteCommand implements Command {
+  readonly projectWide = true;
   private before: Palette;
   private after: Palette;
   private remapped: { before: IndexedImage[]; after: IndexedImage[]; surfaces: [layer: number, surface: number, from: number, to: number][] } | null = null;

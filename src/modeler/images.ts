@@ -27,6 +27,7 @@ export function imageUsage(state: ModelerState, name: string): number {
 }
 
 export class AddImageCommand implements Command {
+  readonly projectWide = true;
   readonly label: string;
 
   constructor(
@@ -47,6 +48,7 @@ export class AddImageCommand implements Command {
 
 /** Remove an image. Surfaces that use it keep the name, so undoing (or adding it back) reconnects them. */
 export class RemoveImageCommand implements Command {
+  readonly projectWide = true;
   readonly label: string;
   private index = 0;
 
@@ -71,6 +73,7 @@ export class RemoveImageCommand implements Command {
 
 /** Rename an image and every surface that refers to it, so no texture silently disconnects. */
 export class RenameImageCommand implements Command {
+  readonly projectWide = true;
   readonly label: string;
   private renamed: IndexedImage;
   /** Layer and surface indices that used the old name. Indices, not objects: panels replace surface objects. */

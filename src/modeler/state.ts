@@ -8,7 +8,8 @@ export type SelectionOp = 'replace' | 'add' | 'remove';
 /** Tools whose values the Numeric panel can type in. */
 export type TransformToolName = 'move' | 'rotate' | 'size';
 /** Every tool that owns drags in the viewports. */
-export type ToolName = TransformToolName | 'extrude' | 'bevel' | 'knife';
+export type DeformToolName = 'stretch' | 'drag' | 'magnet' | 'bend' | 'twist' | 'taper';
+export type ToolName = TransformToolName | DeformToolName | 'extrude' | 'bevel' | 'knife';
 
 /** LightWave 4 Modeler has ten layers; the active one is edited, the others show as background. */
 export const LAYER_COUNT = 10;
@@ -139,11 +140,13 @@ export class ModelerState {
 
   /** Make an already-applied edit undoable (used by interactive tools that preview live). */
   record(cmd: Command): void {
-    this.history.record(cmd);
+    this.history.record(cmd, this.activeLayer);
     this.changed();
   }
 
+  /** Undo the last edit, first going to the layer it was made on, so what changes is what you see and the selection it restores lands on the right geometry. */
   undo(): void {
+    this.goToLayer(this.history.undoLayer);
     if (this.history.undo()) {
       this.pruneSelection();
       this.changed();
@@ -151,10 +154,15 @@ export class ModelerState {
   }
 
   redo(): void {
+    this.goToLayer(this.history.redoLayer);
     if (this.history.redo()) {
       this.pruneSelection();
       this.changed();
     }
+  }
+
+  private goToLayer(layer: number | undefined): void {
+    if (layer !== undefined && layer !== this.activeLayer) this.setActiveLayer(layer);
   }
 
   /** Drop selected ids that no longer exist (e.g. after undoing a create). */

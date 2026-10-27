@@ -1,6 +1,7 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
 import { booleanMeshes, BooleanError, type BooleanOp } from './boolean';
 import { AddPrimitiveCommand } from './create';
+import { deformer, extentAlong, type DeformSpec } from './deform';
 import { extrude, type ExtrudeDirection } from './extrude';
 import { knife, type CutPlane, type KnifeOptions } from './knife';
 import { mirror, type MirrorAxis } from './mirror';
@@ -17,6 +18,7 @@ import {
   type Geometry,
 } from './geometry';
 import type { Command } from './history';
+import { TransformPointsCommand } from './pointDrag';
 import { LAYER_COUNT, type ModelerState } from './state';
 
 /** What a command tells the person: whether it did something, and one line to show. */
@@ -317,4 +319,29 @@ export function booleanLayers(state: ModelerState, { object, cutter, target, ope
   state.execute(new AddPrimitiveCommand(state, result, target, label));
   const verb = { add: `Added layer ${object + 1} and layer ${cutter + 1}`, subtract: `Subtracted layer ${cutter + 1} from layer ${object + 1}`, intersect: `Intersected layer ${object + 1} and layer ${cutter + 1}` }[operation];
   return done(`${verb}: ${plural(result.polygons.length, 'polygon')} on layer ${target + 1}`);
+}
+
+// --- deformers -------------------------------------------------------------------------------------------------------
+
+const DEFORM_PAST = { stretch: 'Stretched', taper: 'Tapered', twist: 'Twisted', bend: 'Bent' } as const;
+const DEFORM_LABEL = { stretch: 'Stretch', taper: 'Taper', twist: 'Twist', bend: 'Bend' } as const;
+
+/**
+ * Stretch, taper, twist or bend the selected points (or the whole layer, if none are selected) by typed values, about the
+ * pivot. The drag tools do the same thing live.
+ */
+export function deformSelection(state: ModelerState, spec: DeformSpec): EditResult {
+  const label = DEFORM_LABEL[spec.kind];
+  const values = spec.kind === 'stretch' ? spec.factors : [spec.kind === 'taper' ? spec.amount : spec.radians];
+  if (!values.every(Number.isFinite)) return fail(`Type a number for the ${label.toLowerCase()}`);
+  if (spec.kind === 'bend' && spec.toward === spec.axis) return fail('Bend towards a different axis than the one it bends along');
+  const ids = state.affectedPoints();
+  if (ids.length === 0) return fail('There are no points to deform');
+  const before = ids.map((i) => [...state.mesh.points[i]!] as Vec3);
+  if (spec.kind !== 'stretch' && extentAlong(before, spec.axis).length === 0) return fail(`The points have no length along ${spec.axis.toUpperCase()} to ${label.toLowerCase()}`);
+  const pivot = state.pivotFor(ids)!;
+  const after = before.map(deformer(before, spec, pivot));
+  if (!after.some((p, i) => p.some((c, k) => c !== before[i]![k]))) return fail(`The ${label.toLowerCase()} changes nothing`);
+  state.execute(new TransformPointsCommand(label, state.mesh, ids, before, after));
+  return done(`${DEFORM_PAST[spec.kind]} ${plural(ids.length, 'point')}`);
 }

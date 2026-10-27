@@ -18,6 +18,8 @@ export * from './knife';
 export * from './knifeTool';
 export * from './triangulate';
 export * from './boolean';
+export * from './deform';
+export * from './deformTools';
 export * from './cleanup';
 export * from './edit';
 export * from './state';
