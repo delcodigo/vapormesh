@@ -2,6 +2,7 @@ import { decodeProject, encodeProject, exportObj, ObjFormatError, parseMtl, pars
 import { addMeshesToLayers, type ModelerState } from '@/modeler';
 import type { DisplaySettings } from '@/render';
 import { downloadBlob } from './download';
+import type { MtlPromptInfo } from './mtlPrompt';
 
 const EXTENSION = '.vmesh';
 
@@ -34,6 +35,8 @@ export function createFileActions(
   display: DisplaySettings,
   input: HTMLInputElement,
   objInput: HTMLInputElement,
+  mtlInput: HTMLInputElement,
+  askForMtl: (info: MtlPromptInfo, onPick: () => void, onSkip: () => void) => void,
   editor: EditorBridge,
   notify: (message: string, isError?: boolean) => void,
   onLoaded: () => void,
@@ -103,16 +106,13 @@ export function createFileActions(
   };
 
   const MAX_OBJ_BYTES = 50 * 1024 * 1024;
-  objInput.addEventListener('change', async () => {
-    const files = [...(objInput.files ?? [])];
-    objInput.value = '';
-    const objFile = files.find((f) => /\.obj$/i.test(f.name));
-    const mtlFile = files.find((f) => /\.mtl$/i.test(f.name));
-    if (!objFile) return notify('Pick a .obj file (and its .mtl too, for colours)', true);
-    if (objFile.size > MAX_OBJ_BYTES) return notify(`${objFile.name} is too large (over 50 MB)`, true);
+
+  /** Add an OBJ (already read) to the model, with the colours of its .mtl if there is one. */
+  const importObjText = async (objName: string, text: string, mtlFile?: File) => {
     try {
-      const materials = mtlFile && mtlFile.size <= MAX_OBJ_BYTES ? parseMtl(await mtlFile.text()) : undefined;
-      const parsed = parseObj(await objFile.text(), state.palette, materials);
+      if (mtlFile && mtlFile.size > MAX_OBJ_BYTES) return notify(`${mtlFile.name} is too large (over 50 MB)`, true);
+      const materials = mtlFile ? parseMtl(await mtlFile.text()) : undefined;
+      const parsed = parseObj(text, state.palette, materials);
       const placed = addMeshesToLayers(state, parsed.groups);
       const count = parsed.groups.reduce((n, g) => n + g.mesh.polygons.length, 0);
       const where = placed.layers.length === 1 ? `layer ${placed.layers[0]! + 1}` : `layers ${placed.layers.map((l) => l + 1).join(', ')}`;
@@ -122,10 +122,42 @@ export function createFileActions(
         placed.merged ? `${placed.merged} objects merged for lack of empty layers` : '',
         !mtlFile ? 'no .mtl: surfaces are uncoloured' : '',
       ].filter(Boolean);
-      notify(`Imported ${objFile.name}: ${count} polygons into ${where}${notes.length ? ` (${notes.join('; ')})` : ''}`);
+      notify(`Imported ${objName}: ${count} polygons into ${where}${notes.length ? ` (${notes.join('; ')})` : ''}`);
     } catch (err) {
-      notify(`Could not import ${objFile.name}: ${err instanceof ObjFormatError ? err.message : 'unexpected error'}`, true);
+      notify(`Could not import ${objName}: ${err instanceof ObjFormatError ? err.message : 'unexpected error'}`, true);
     }
+  };
+
+  // A page cannot open the .mtl sitting next to the .obj, so when the .obj wants one and only it was picked, ask for the .mtl.
+  let waiting: { name: string; text: string } | null = null;
+  const finishWaiting = (mtlFile?: File) => {
+    const pending = waiting;
+    waiting = null;
+    if (pending) void importObjText(pending.name, pending.text, mtlFile);
+  };
+  mtlInput.addEventListener('change', () => {
+    const file = mtlInput.files?.[0];
+    mtlInput.value = '';
+    finishWaiting(file);
+  });
+  mtlInput.addEventListener('cancel', () => finishWaiting()); // dismissed the picker: import without colours
+
+  objInput.addEventListener('change', async () => {
+    const files = [...(objInput.files ?? [])];
+    objInput.value = '';
+    const objFile = files.find((f) => /\.obj$/i.test(f.name));
+    const mtlFile = files.find((f) => /\.mtl$/i.test(f.name));
+    if (!objFile) return notify('Pick a .obj file (and its .mtl too, for colours)', true);
+    if (objFile.size > MAX_OBJ_BYTES) return notify(`${objFile.name} is too large (over 50 MB)`, true);
+    const text = await objFile.text();
+    const wanted = /^\s*mtllib\s+(.+?)\s*$/m.exec(text)?.[1];
+    if (!mtlFile && wanted && /^\s*usemtl\s/m.test(text)) {
+      waiting = { name: objFile.name, text };
+      // the second picker must open from a click on the dialog, not from here: see createMtlPrompt
+      askForMtl({ objName: objFile.name, mtlName: wanted }, () => mtlInput.click(), () => finishWaiting());
+      return;
+    }
+    await importObjText(objFile.name, text, mtlFile);
   });
 
   return { newProject, save, load, importObj: () => objInput.click(), exportObj: exportObjFiles, isDirty };

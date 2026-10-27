@@ -37,7 +37,7 @@ Status of each item: **Decided** (by the author), **Proposed** (a default, chang
 
 | Tool | Export |
 |------|--------|
-| Modeler, Animator | glTF (.glb) with UVs, surfaces and animation; OBJ as a fallback (done: geometry, UVs and colours, no textures) |
+| Modeler, Animator | glTF (.glb) with UVs, surfaces and animation; OBJ as a fallback (done: geometry, UVs, surface settings; no texture images) |
 | Texture editor | Indexed PNG, plus the palette as .gpl and .act |
 | Layout | WebM or MP4 video, plus PNG sequences |
 | Tracker | The module itself, plus a WAV render |

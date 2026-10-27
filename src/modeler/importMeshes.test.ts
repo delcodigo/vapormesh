@@ -53,4 +53,31 @@ describe('addMeshesToLayers', () => {
     expect(addMeshesToLayers(s, [])).toEqual({ layers: [], merged: 0 });
     expect(s.history.canUndo).toBe(false);
   });
+
+  it('keeps the imported surfaces as they are in an empty layer, instead of folding them into its default', () => {
+    const s = new ModelerState();
+    const mesh = box(1, 1, 1);
+    Object.assign(mesh.surfaces[0]!, { name: 'Default', colorIndex: 99, smoothing: true, smoothingAngle: 40, doubleSided: true });
+    addMeshesToLayers(s, [{ name: 'g', mesh }]);
+    expect(s.layers[0]!.surfaces).toEqual(mesh.surfaces);
+    expect(s.layers[0]!.surfaces).not.toBe(mesh.surfaces); // a copy: editing the layer must not change the import
+    expect(s.layers[0]!.polygons.every((p) => p.surface === 0)).toBe(true);
+    s.undo();
+    expect(s.layers[0]!.surfaces).toHaveLength(1);
+    expect(s.layers[0]!.surfaces[0]).toMatchObject({ name: 'Default', smoothing: false, colorIndex: 12 });
+    expect(s.layers[0]!.points).toHaveLength(0);
+    s.redo();
+    expect(s.layers[0]!.surfaces[0]).toMatchObject({ smoothing: true, colorIndex: 99 });
+  });
+
+  it('still merges surfaces by name when the layer already has geometry', () => {
+    const s = new ModelerState(box(1, 1, 1));
+    const mesh = box(1, 1, 1);
+    mesh.surfaces[0]!.name = 'Extra';
+    s.layers.forEach((l, i) => i > 0 && l.append(box(1, 1, 1))); // no empty layer left, so it merges into the active one
+    addMeshesToLayers(s, [{ name: 'g', mesh }]);
+    expect(s.layers[0]!.surfaces.map((x) => x.name)).toEqual(['Default', 'Extra']);
+    s.undo();
+    expect(s.layers[0]!.surfaces.map((x) => x.name)).toEqual(['Default']);
+  });
 });

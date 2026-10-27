@@ -1,11 +1,17 @@
-import type { Mesh, MeshSize } from '@/core';
+import type { Mesh, MeshSize, Surface } from '@/core';
+import { clonePolygon } from './geometry';
 import type { Command } from './history';
 import { LAYER_COUNT, type ModelerState } from './state';
 
-/** Adds meshes to layers in one step: undo cuts them all back out and returns to the layer that was active. */
+/**
+ * Adds meshes to layers in one step: undo cuts them all back out and returns to the layer that was active. An empty layer takes
+ * the mesh's surfaces as they are; merging by name, as for a primitive added to a model, would fold an imported "Default" into the
+ * layer's own and lose its settings.
+ */
 export class AddMeshesCommand implements Command {
   readonly projectWide = true;
-  private sizes: MeshSize[] = [];
+  /** What each entry did, to undo it: a size to cut back to, or the surfaces an empty layer had before. */
+  private undoers: ({ size: MeshSize } | { surfaces: Surface[] })[] = [];
   private previousLayer = 0;
 
   constructor(
@@ -16,12 +22,30 @@ export class AddMeshesCommand implements Command {
 
   redo(): void {
     this.previousLayer = this.state.activeLayer;
-    this.sizes = this.entries.map(({ mesh, layer }) => this.state.layers[layer]!.append(mesh));
+    this.undoers = this.entries.map(({ mesh, layer }) => {
+      const target = this.state.layers[layer]!;
+      if (target.points.length > 0 || target.polygons.length > 0) return { size: target.append(mesh) };
+      const surfaces = target.surfaces;
+      target.points = mesh.points.map((p) => [...p]);
+      target.polygons = mesh.polygons.map(clonePolygon);
+      target.surfaces = mesh.surfaces.map((s) => ({ ...s }));
+      return { surfaces };
+    });
     this.state.setActiveLayer(this.entries[0]!.layer);
   }
 
   undo(): void {
-    for (let i = this.entries.length - 1; i >= 0; i--) this.state.layers[this.entries[i]!.layer]!.truncate(this.sizes[i]!);
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const target = this.state.layers[this.entries[i]!.layer]!;
+      const undo = this.undoers[i]!;
+      if ('size' in undo) target.truncate(undo.size);
+      else {
+        target.points = [];
+        target.polygons = [];
+        target.surfaces = undo.surfaces;
+        target.hidden.clear();
+      }
+    }
     this.state.setActiveLayer(this.previousLayer);
   }
 }

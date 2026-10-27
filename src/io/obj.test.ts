@@ -139,15 +139,15 @@ describe('parseObj', () => {
   it('turns materials into surfaces, coloured from the .mtl by nearest palette colour', () => {
     const [r, g, b] = paletteColor(palette, 77);
     const mtl = parseMtl(`newmtl Red Brick\nKd ${r / 255} ${g / 255} ${b / 255}\nKs 1 1 1\n\nnewmtl Other\nKd 0 0 0\n`);
-    expect(mtl.get('Red Brick')).toEqual([r / 255, g / 255, b / 255]);
+    expect(mtl.get('Red Brick')?.color).toEqual([r / 255, g / 255, b / 255]);
     const m = parseObj(`${tri}usemtl Red Brick\nf 1 2 3\nusemtl Other\nf 3 2 1\n`, palette, mtl);
     const mesh = m.groups[0]!.mesh;
-    expect(mesh.surfaces.map((s) => s.name)).toEqual(['Default', 'Red Brick', 'Other']);
+    expect(mesh.surfaces.map((s) => s.name)).toEqual(['Red Brick', 'Other']); // the unused placeholder is dropped
     expect(mesh.surfaces[mesh.polygons[0]!.surface]!.colorIndex).toBe(77);
-    expect(mesh.polygons[1]!.surface).toBe(2);
+    expect(mesh.polygons[1]!.surface).toBe(1);
     expect(m.usedMaterials).toBe(true);
     // without a .mtl the surfaces still exist, just uncoloured
-    expect(parseObj(`${tri}usemtl Red Brick\nf 1 2 3\n`, palette).groups[0]!.mesh.surfaces[1]!.name).toBe('Red Brick');
+    expect(parseObj(`${tri}usemtl Red Brick\nf 1 2 3\n`, palette).groups[0]!.mesh.surfaces[0]!.name).toBe('Red Brick');
   });
 
   it('skips faces that cannot be used and counts them, keeping the rest', () => {
@@ -183,3 +183,70 @@ describe('parseObj', () => {
     expect(() => parseObj(lines.join(''), palette)).toThrow('more than 100000 polygons');
   });
 });
+
+describe('smoothing and surface settings', () => {
+  const surface = (m: Mesh, poly = 0) => m.surfaces[m.polygons[poly]!.surface]!;
+
+  it('keeps smoothing through export and import, per surface', () => {
+    const m = box(1, 1, 1);
+    m.surfaces[0]!.name = 'Round';
+    m.surfaces[0]!.smoothing = true;
+    m.surfaces.push({ ...m.surfaces[0]!, name: 'Hard', smoothing: false });
+    m.polygons[0]!.surface = 1;
+    const { obj, mtl } = exportObj([m], palette, 'x.mtl');
+    const back = parseObj(obj, palette, parseMtl(mtl)).groups[0]!.mesh;
+    expect(surface(back, 0).name).toBe('Hard');
+    expect(surface(back, 0).smoothing).toBe(false);
+    expect(surface(back, 1).name).toBe('Round');
+    expect(surface(back, 1).smoothing).toBe(true);
+    // and it works without the .mtl too: smoothing lives in the .obj itself
+    const noMtl = parseObj(obj, palette).groups[0]!.mesh;
+    expect(surface(noMtl, 1).smoothing).toBe(true);
+    expect(surface(noMtl, 0).smoothing).toBe(false);
+  });
+
+  it('keeps the other surface settings the .mtl can carry, exactly', () => {
+    const m = box(1, 1, 1);
+    Object.assign(m.surfaces[0]!, { name: 'Glass', colorIndex: 33, diffuse: 0.4, luminosity: 0.25, specular: 0.7, glossiness: 0.9, smoothing: true, smoothingAngle: 45, doubleSided: true, texture: 'window', wrap: 'clamp' });
+    const { obj, mtl } = exportObj([m], palette, 'x.mtl');
+    const s = surface(parseObj(obj, palette, parseMtl(mtl)).groups[0]!.mesh);
+    expect(s).toEqual(m.surfaces[0]);
+  });
+
+  it('reads smoothing groups from other tools: numbered groups mean smooth, off and 0 mean flat', () => {
+    const tri = 'v 0 0 0\nv 1 0 0\nv 0 1 0\n';
+    const m = parseObj(`${tri}s 1\nf 1 2 3\ns 0\nf 1 2 3\ns off\nf 1 2 3\ns 2\nf 1 2 3\n`, palette).groups[0]!.mesh;
+    expect(m.polygons.map((p) => m.surfaces[p.surface]!.smoothing)).toEqual([true, false, false, true]);
+    expect(parseObj(`${tri}f 1 2 3\n`, palette).groups[0]!.mesh.polygons[0]!.surface).toBe(0); // no `s`: the default, flat surface
+  });
+
+  it('splits a material used both smooth and flat into two surfaces, named apart', () => {
+    const text = 'v 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Stone\nf 1 2 3\ns 1\nf 1 2 3\n';
+    const m = parseObj(text, palette).groups[0]!.mesh;
+    expect(m.surfaces.map((s) => s.name)).toEqual(['Stone', 'Stone (smooth)']);
+    expect(m.polygons.map((p) => p.surface)).toEqual([0, 1]);
+  });
+
+  it('drops the placeholder default surface when nothing uses it, so there is no second "Default"', () => {
+    const m = parseObj('v 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Default\ns 1\nf 1 2 3\n', palette).groups[0]!.mesh;
+    expect(m.surfaces.map((s) => s.name)).toEqual(['Default']);
+    expect(m.surfaces[0]!.smoothing).toBe(true);
+    expect(m.polygons[0]!.surface).toBe(0);
+  });
+
+  it('smooth faces with no material get a surface of their own', () => {
+    const m = parseObj('v 0 0 0\nv 1 0 0\nv 0 1 0\ns 1\nf 1 2 3\n', palette).groups[0]!.mesh;
+    expect(m.surfaces[m.polygons[0]!.surface]).toMatchObject({ name: 'Smooth', smoothing: true });
+  });
+
+  it('ignores a damaged or hostile vapormesh comment and keeps the colour', () => {
+    const base = 'newmtl A\nKd 1 0 0\n';
+    for (const comment of ['# vapormesh {nope', '# vapormesh null', '# vapormesh []', '# vapormesh {"diffuse":"x","smoothingAngle":999,"wrap":"zigzag","doubleSided":1,"texture":5}']) {
+      const info = parseMtl(`${base}${comment}\n`).get('A')!;
+      expect(info.color).toEqual([1, 0, 0]);
+      expect(info.surface ?? {}).toEqual({});
+    }
+    expect(parseMtl(`${base}# vapormesh {"diffuse":0.5,"extra":"ignored"}\n`).get('A')!.surface).toEqual({ diffuse: 0.5 });
+  });
+});
+

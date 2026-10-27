@@ -249,3 +249,10 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .dropdown .sep { height: 2px; margin: 3px 2px; background: linear-gradient(90deg, var(--pink), var(--cyan)); opacity: 0.55; }
 .dropdown kbd { font: 11px 'Courier New', monospace; color: var(--lo); }
 .dropdown button[role='menuitem']:hover kbd, .dropdown button[role='menuitem']:focus-visible kbd { color: var(--night); }
+
+/* the question about a .mtl: a dialog over a dimmed page */
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(27, 15, 59, 0.6); }
+.modal-backdrop[hidden] { display: none; }
+.numeric.dialog { position: static; width: 340px; box-shadow: 5px 5px 0 var(--night), 0 0 24px rgba(1, 205, 254, 0.5); }
+.dialog .dialog-body { padding: 8px 6px; line-height: 1.4; }
+.dialog .numeric-actions { justify-content: flex-end; }

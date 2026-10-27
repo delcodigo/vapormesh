@@ -41,9 +41,9 @@ view to place the axis: the shape follows the pointer. The options set the axis 
 
 New, Load, Save, Import OBJ and Export OBJ are in the **File** menu in the menu bar (`Ctrl+O` and `Ctrl+S` still work).
 
-**OBJ** keeps points shared, n-gons, UVs and one material per surface (the colour only). Each layer is an object: exporting writes
-`name.obj` and `name.mtl`; importing puts each object into an empty layer, and picks up colours if you select the `.mtl` along with
-the `.obj`. Textures are not written, since an OBJ can only point at an image file; glTF export, later, will carry them. Choosing a tool with its key shows its tab, and the last tab is remembered.
+**OBJ** keeps points shared, n-gons, UVs and one material per surface: its colour and shininess, smoothing (the OBJ's own `s` lines) and the rest of the surface settings (diffuse, luminosity, smoothing angle, double-sided, texture name), which go in a `# vapormesh` comment in the `.mtl` that other tools skip. Each layer is an object: exporting writes
+`name.obj` and `name.mtl`; importing puts each object into an empty layer, and picks up colours from the `.mtl`: select both files together (Ctrl-click), or pick just the `.obj` and the app asks
+for the `.mtl` it names, since a web page cannot open it by itself. Without it, surfaces come in uncoloured. Texture images are not written, since an OBJ can only point at an image file; glTF export, later, will carry them. From other tools, `s` groups become smooth surfaces and the `.mtl` colour is matched to your palette. Choosing a tool with its key shows its tab, and the last tab is remembered.
 
 ## Keys
 

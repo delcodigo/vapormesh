@@ -41,6 +41,7 @@ import {
   createArrayPanel,
   createExtrudePanel,
   createLathePanel,
+  createMtlPrompt,
   setupMenus,
   createPositionPanel,
   createBooleanPanel,
@@ -173,7 +174,7 @@ app.innerHTML = `
         <button role="menuitem" data-action="load"><span>Load…</span><kbd>Ctrl+O</kbd></button>
         <button role="menuitem" data-action="save"><span>Save…</span><kbd>Ctrl+S</kbd></button>
         <div class="sep" role="separator"></div>
-        <button role="menuitem" data-action="importObj" title="Add an .obj (pick its .mtl too for colours) to empty layers"><span>Import OBJ…</span></button>
+        <button role="menuitem" data-action="importObj" title="Add an .obj to empty layers. Select its .mtl as well (Ctrl-click) for colours, or you will be asked for it"><span>Import OBJ…</span></button>
         <button role="menuitem" data-action="exportObj" title="Download the model as .obj and .mtl"><span>Export OBJ…</span></button>
       </div>
     </span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
@@ -252,7 +253,8 @@ app.innerHTML = `
     <button id="undo">Undo</button>
   </div>
   <input type="file" id="file-input" accept=".vmesh" hidden>
-  <input type="file" id="obj-input" accept=".obj,.mtl" multiple hidden>`;
+  <input type="file" id="obj-input" accept=".obj,.mtl" multiple hidden>
+  <input type="file" id="mtl-input" accept=".mtl" hidden>`;
 
 const readout = app.querySelector<HTMLElement>('.readout')!;
 const modeButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-mode]')];
@@ -372,7 +374,7 @@ const editorBridge: EditorBridge = {
     for (const { vp } of viewports) vp.resetView();
   },
 };
-const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, app.querySelector<HTMLInputElement>('#obj-input')!, editorBridge, notify, showViewMode);
+const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, app.querySelector<HTMLInputElement>('#obj-input')!, app.querySelector<HTMLInputElement>('#mtl-input')!, createMtlPrompt(document.body), editorBridge, notify, showViewMode);
 window.addEventListener('beforeunload', (e) => {
   if (files.isDirty()) e.preventDefault(); // makes the browser ask before closing with unsaved work
 });
@@ -581,3 +583,6 @@ function frame() {
   requestAnimationFrame(frame);
 }
 frame();
+
+// Browser tests read and set the model through this; it is not in the production build.
+if (import.meta.env.DEV) (window as unknown as { __vapormesh: unknown }).__vapormesh = { state };

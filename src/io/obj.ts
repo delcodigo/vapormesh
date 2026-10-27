@@ -3,8 +3,10 @@ import { defaultSurface, Mesh, nearestIndex, paletteColor, type Palette, type Su
 /**
  * Wavefront .obj import and export, the plain-text format nearly every 3D tool reads. Coordinates and winding are kept as they
  * are (right-handed, counter-clockwise faces point out). UVs are flipped between VaporMesh's top-left origin and OBJ's
- * bottom-left one. Materials travel as a companion .mtl file, as plain colours: textures are not written, since an OBJ can
- * only point at an image file and the project keeps its images inside the .vmesh.
+ * bottom-left one. Surfaces travel as a companion .mtl file: the colour and shininess in the standard fields, everything else
+ * (diffuse, luminosity, smoothing angle, double-sided, the texture's name) in a `# vapormesh {...}` comment other tools skip.
+ * Smoothing is the OBJ's own `s` lines. Texture images are not written: an OBJ can only point at an image file and the project
+ * keeps its images inside the .vmesh.
  */
 export class ObjFormatError extends Error {}
 
@@ -55,6 +57,9 @@ export function exportObj(layers: readonly Mesh[], palette: Palette, mtlName: st
     if (s.luminosity > 0) materials.push(`Ke ${number((r / 255) * s.luminosity)} ${number((g / 255) * s.luminosity)} ${number((b / 255) * s.luminosity)}`);
     if (s.specular > 0) materials.push(`Ks ${number(s.specular)} ${number(s.specular)} ${number(s.specular)}`, `Ns ${Math.round(Math.pow(2, 2 + s.glossiness * 8))}`);
     materials.push('d 1', `illum ${s.specular > 0 ? 2 : 1}`);
+    // what the standard fields cannot say, in a comment that every other tool ignores
+    const extras = { diffuse: s.diffuse, luminosity: s.luminosity, specular: s.specular, glossiness: s.glossiness, smoothingAngle: s.smoothingAngle, doubleSided: s.doubleSided, texture: s.texture, wrap: s.wrap };
+    materials.push(`# vapormesh ${JSON.stringify(extras)}`);
     if (s.texture) materials.push(`# texture: ${s.texture} (images are not exported; they live in the .vmesh)`);
     return name;
   };
@@ -112,16 +117,50 @@ export interface ObjImport {
   usedMaterials: boolean;
 }
 
-/** Colours (0..1) by material name from a .mtl file. */
-export function parseMtl(text: string): Map<string, [number, number, number]> {
-  const out = new Map<string, [number, number, number]>();
+/** What a .mtl says about one material: its colour (0..1 per channel), and the VaporMesh extras if it came from VaporMesh. */
+export interface ObjMaterial {
+  color: [number, number, number];
+  surface?: Partial<Surface>;
+}
+
+const isNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** The surface fields of a `# vapormesh {...}` comment that are well-formed; anything else in it is ignored. */
+function readExtras(json: string): Partial<Surface> {
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Partial<Surface> = {};
+  for (const key of ['diffuse', 'luminosity', 'specular', 'glossiness'] as const) if (isNumber(raw[key]) && raw[key] >= 0 && raw[key] <= 1) out[key] = raw[key];
+  if (isNumber(raw.smoothingAngle) && raw.smoothingAngle >= 0 && raw.smoothingAngle <= 180) out.smoothingAngle = raw.smoothingAngle;
+  if (typeof raw.doubleSided === 'boolean') out.doubleSided = raw.doubleSided;
+  if (raw.texture === null || typeof raw.texture === 'string') out.texture = raw.texture;
+  if (raw.wrap === 'repeat' || raw.wrap === 'clamp') out.wrap = raw.wrap;
+  return out;
+}
+
+/** Materials by name from a .mtl file. */
+export function parseMtl(text: string): Map<string, ObjMaterial> {
+  const out = new Map<string, ObjMaterial>();
   let current: string | null = null;
+  let extras: Partial<Surface> | undefined;
   for (const raw of text.split(/\r?\n/)) {
-    const parts = raw.trim().split(/\s+/);
-    if (parts[0] === 'newmtl' && parts[1]) current = parts.slice(1).join(' ');
-    else if (parts[0] === 'Kd' && current) {
+    const line = raw.trim();
+    const parts = line.split(/\s+/);
+    if (parts[0] === 'newmtl' && parts[1]) {
+      current = parts.slice(1).join(' ');
+      extras = undefined;
+    } else if (parts[0] === 'Kd' && current) {
       const rgb = parts.slice(1, 4).map(Number);
-      if (rgb.length === 3 && rgb.every(Number.isFinite)) out.set(current, rgb as [number, number, number]);
+      if (rgb.length === 3 && rgb.every(Number.isFinite)) out.set(current, { color: rgb as [number, number, number], ...(extras && { surface: extras }) });
+    } else if (line.startsWith('# vapormesh ') && current) {
+      extras = readExtras(line.slice('# vapormesh '.length));
+      const known = out.get(current);
+      if (known) known.surface = extras;
     }
   }
   return out;
@@ -132,12 +171,13 @@ export function parseMtl(text: string): Map<string, [number, number, number]> {
  * from the .mtl's `Kd` (nearest palette colour) when `materials` is given. Anything it cannot use is skipped and counted; a
  * file with no usable faces is an error.
  */
-export function parseObj(text: string, palette: Palette, materials?: Map<string, [number, number, number]>): ObjImport {
+export function parseObj(text: string, palette: Palette, materials?: Map<string, ObjMaterial>): ObjImport {
   const positions: (Vec3 | null)[] = [];
   const texcoords: (UV | null)[] = [];
-  const groups: { name: string; faces: { v: number[]; vt: (number | null)[]; material: string | null }[] }[] = [];
+  const groups: { name: string; faces: { v: number[]; vt: (number | null)[]; material: string | null; smooth: boolean }[] }[] = [];
   let current: (typeof groups)[number] | null = null;
   let material: string | null = null;
+  let smooth = false;
   let skippedFaces = 0;
   let ignoredLines = 0;
   let polygonCount = 0;
@@ -208,14 +248,16 @@ export function parseObj(text: string, palette: Palette, materials?: Map<string,
           break;
         }
         if (++polygonCount > MAX_OBJ_POLYGONS) throw new ObjFormatError(`This file has more than ${MAX_OBJ_POLYGONS} polygons, far more than a low-poly asset needs`);
-        current!.faces.push({ v, vt, material });
+        current!.faces.push({ v, vt, material, smooth });
         break;
       }
-      case 'vn':
       case 's':
+        smooth = !!parts[1] && parts[1] !== 'off' && parts[1] !== '0'; // a smoothing group number, or off
+        break;
+      case 'vn':
       case 'mtllib':
       case 'vp':
-        break; // normals are recomputed, smoothing is set per surface, the .mtl comes separately
+        break; // normals are recomputed, and the .mtl comes separately
       default:
         ignoredLines++; // l, p, curves, surfaces, ...
     }
@@ -236,21 +278,30 @@ export function parseObj(text: string, palette: Palette, materials?: Map<string,
         }
         return li;
       });
-      let surface = 0;
-      if (face.material) {
-        let known = surfaceOf.get(face.material);
-        if (known === undefined) {
-          const s = defaultSurface(face.material);
-          const rgb = materials?.get(face.material);
-          if (rgb) s.colorIndex = nearestIndex(palette, rgb[0] * 255, rgb[1] * 255, rgb[2] * 255);
-          known = mesh.surfaces.push(s) - 1;
-          surfaceOf.set(face.material, known);
+      // a surface is a material and whether it is smoothed: one material used both ways becomes two surfaces
+      const key = `${face.material ?? ''}|${face.smooth}`;
+      let surface = surfaceOf.get(key);
+      if (surface === undefined) {
+        if (!face.material && !face.smooth) surface = 0; // the default surface
+        else {
+          const base = face.material ?? 'Smooth';
+          const clash = !!face.material && [...surfaceOf.keys()].some((k) => k.startsWith(`${face.material ?? ''}|`));
+          const s = defaultSurface(clash ? `${base} (${face.smooth ? 'smooth' : 'flat'})` : base);
+          const info = face.material ? materials?.get(face.material) : undefined;
+          if (info) s.colorIndex = nearestIndex(palette, info.color[0] * 255, info.color[1] * 255, info.color[2] * 255);
+          Object.assign(s, info?.surface, { smoothing: face.smooth });
+          surface = mesh.surfaces.push(s) - 1;
         }
-        surface = known;
+        surfaceOf.set(key, surface);
       }
       const poly = { points, surface } as { points: number[]; surface: number; uvs?: UV[] };
       if (face.vt.every((t) => t !== null)) poly.uvs = face.vt.map((t) => [texcoords[t!]![0], 1 - texcoords[t!]![1]] as UV);
       mesh.polygons.push(poly);
+    }
+    // the placeholder default surface is only worth keeping if some polygon uses it
+    if (mesh.surfaces.length > 1 && !mesh.polygons.some((p) => p.surface === 0)) {
+      mesh.surfaces.shift();
+      mesh.polygons.forEach((p) => p.surface--);
     }
     result.push({ name: group.name, mesh });
   }

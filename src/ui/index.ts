@@ -16,5 +16,6 @@ export * from './arrayPanel';
 export * from './lathePanel';
 export * from './menus';
 export * from './mirrorPanel';
+export * from './mtlPrompt';
 export * from './knifePanel';
 export * from './booleanPanel';
