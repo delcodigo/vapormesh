@@ -8,6 +8,7 @@ import {
   cutSelection,
   deleteSelection,
   ExtrudeTool,
+  KnifeTool,
   flipSelection,
   makePolygon,
   mergeCoincidentPoints,
@@ -28,10 +29,12 @@ import {
 import {
   createExtrudePanel,
   createFileActions,
+  createKnifePanel,
   createMirrorPanel,
   createImagesPanel,
   type EditorBridge,
   type ExtrudePanel,
+  type KnifePanel,
   createNumericPanel,
   createPaletteEditor,
   createPrimitivePanel,
@@ -86,6 +89,7 @@ const display = defaultDisplay();
 // ?view=shaded opens straight into a shaded Perspective view
 const requested = new URLSearchParams(location.search).get('view');
 if (VIEW_MODES.some(([m]) => m === requested)) display.mode = requested as ViewMode;
+let knifePanel: KnifePanel | null = null;
 let extrudePanel: ExtrudePanel | null = null; // created once the page exists; the tools ask it for their options
 const dragTools: Record<ToolName, DragTool> = {
   move: new MoveTool(state),
@@ -93,6 +97,8 @@ const dragTools: Record<ToolName, DragTool> = {
   size: new SizeTool(state),
   extrude: new ExtrudeTool(state, () => extrudePanel!.options('extrude'), 'Extrude'),
   bevel: new ExtrudeTool(state, () => extrudePanel!.options('bevel'), 'Bevel'),
+  // the tool reports what it did through the status line, which is declared further down
+  knife: new KnifeTool(state, () => knifePanel!.options(), (r) => notify(r.message, !r.ok)),
 };
 const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : null);
 
@@ -111,6 +117,8 @@ app.innerHTML = `
       <div class="section">Multiply</div>
       ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first">${label}</button>`).join('')}
       <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
+      <div class="section">Tools</div>
+      <button data-tool="knife" title="Drag a line across polygons to cut them along it">Knife</button>
       <div class="section">Create</div>
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
       <div class="section">Surface</div>
@@ -178,6 +186,7 @@ toolButtons.forEach((b) =>
 );
 const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
 extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
+knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
@@ -368,7 +377,10 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
   vp.dragHandler = {
     // With no tool active, ortho drags draw a selection box.
     get rubberBand() {
-      return state.activeTool === null;
+      return state.activeTool === null || state.activeTool === 'knife';
+    },
+    get bandShape() {
+      return state.activeTool === 'knife' ? ('line' as const) : ('box' as const);
     },
     begin: (v, e) => {
       const tool = activeDragTool();
@@ -377,7 +389,7 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
     move: (i) => activeDragTool()?.move(i),
     end: (i) => {
       const tool = activeDragTool();
-      if (tool) tool.end();
+      if (tool) tool.end(i);
       else boxSelect(vp, i);
     },
     cancel: () => activeDragTool()?.cancel(),

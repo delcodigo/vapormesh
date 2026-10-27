@@ -8,7 +8,7 @@ export type SelectionOp = 'replace' | 'add' | 'remove';
 /** Tools whose values the Numeric panel can type in. */
 export type TransformToolName = 'move' | 'rotate' | 'size';
 /** Every tool that owns drags in the viewports. */
-export type ToolName = TransformToolName | 'extrude' | 'bevel';
+export type ToolName = TransformToolName | 'extrude' | 'bevel' | 'knife';
 
 /** LightWave 4 Modeler has ten layers; the active one is edited, the others show as background. */
 export const LAYER_COUNT = 10;

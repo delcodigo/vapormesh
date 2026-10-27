@@ -179,3 +179,13 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 
 .numeric.mirror { right: 232px; top: 260px; width: 214px; }
 .numeric.mirror .numeric-row select { width: 100%; }
+
+/* knife */
+.numeric.knife { right: 8px; top: 260px; width: 214px; }
+.numeric.knife .numeric-row { gap: 4px; }
+.numeric.knife .numeric-row select { flex: none; width: 52px; }
+.numeric.knife .numeric-row input { flex: 1; }
+.rubberline {
+  position: absolute; display: none; pointer-events: none; height: 0; transform-origin: 0 0;
+  border-top: 2px dashed var(--cream); box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}

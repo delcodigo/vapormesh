@@ -6,6 +6,7 @@ import {
   deleteSelection,
   extrudeSelection,
   flipSelection,
+  knifeSelection,
   makePolygon,
   mirrorSelection,
   mergeCoincidentPoints,
@@ -13,6 +14,7 @@ import {
   triangulateSelection,
   weldSelection,
 } from './edit';
+import { axisPlane } from './knife';
 import { box } from './primitives';
 import { ModelerState } from './state';
 
@@ -452,5 +454,60 @@ describe('mirrorSelection', () => {
     expect(mirrorSelection(flat, across(0)).message).toBe('Everything lies in the mirror plane, so there is nothing to copy');
     expect(s.history.canUndo).toBe(false);
     expect(flat.history.canUndo).toBe(false);
+  });
+});
+
+describe('knifeSelection', () => {
+  const keep = { separate: false };
+
+  it('cuts every polygon when none are selected, selects the points on the cut, and undoes', () => {
+    const s = fresh();
+    const before = snapshot(s.mesh);
+    const r = knifeSelection(s, axisPlane('x', 0), keep);
+    expect(r).toEqual({ ok: true, message: 'Cut 4 polygons' });
+    expect(counts(s)).toEqual([12, 10]);
+    expect(s.selectedPoints.size).toBe(4);
+    expect([...s.selectedPoints].every((i) => s.mesh.points[i]![0] === 0)).toBe(true);
+    expect(s.history.undoLabel).toBe('Knife');
+
+    s.undo();
+    expect(snapshot(s.mesh)).toBe(before);
+    expect(s.selectedPoints.size).toBe(0);
+    s.redo();
+    expect(counts(s)).toEqual([12, 10]);
+  });
+
+  it('cuts only the selected polygons and tells you about the neighbours it had to touch', () => {
+    const s = fresh();
+    s.setMode('polygons');
+    const top = s.mesh.polygons.findIndex((p) => p.points.every((i) => s.mesh.points[i]![1] === 0.5));
+    s.applySelection([top], 'replace');
+    const r = knifeSelection(s, axisPlane('x', 0), keep);
+    expect(r.message).toBe('Cut 1 polygon (2 neighbours got an extra point)');
+    expect(counts(s)).toEqual([10, 7]);
+  });
+
+  it('keeps both halves of a selected polygon selected', () => {
+    const s = fresh();
+    s.setMode('polygons');
+    const top = s.mesh.polygons.findIndex((p) => p.points.every((i) => s.mesh.points[i]![1] === 0.5));
+    s.applySelection([top], 'replace');
+    knifeSelection(s, axisPlane('x', 0), keep);
+    expect([...s.selectedPolygons].sort((a, b) => a - b)).toEqual([top, 6]);
+  });
+
+  it('mentions when the sides are separated', () => {
+    const s = fresh();
+    expect(knifeSelection(s, axisPlane('x', 0), { separate: true }).message).toBe('Cut 4 polygons, sides separated');
+    expect(s.mesh.points).toHaveLength(8 + 4 + 4);
+  });
+
+  it('says why it cannot, and records nothing', () => {
+    const s = fresh();
+    expect(knifeSelection(s, axisPlane('x', 9), keep)).toEqual({ ok: false, message: 'The cut does not pass through any polygon' });
+    expect(knifeSelection(s, null, keep).message).toBe('Draw a longer line to cut along');
+    expect(knifeSelection(s, { normal: [NaN, 0, 0], offset: 0 }, keep).ok).toBe(false);
+    expect(knifeSelection(new ModelerState(), axisPlane('x', 0), keep).message).toBe('There is nothing to cut');
+    expect(s.history.canUndo).toBe(false);
   });
 });

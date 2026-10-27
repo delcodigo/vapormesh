@@ -8,6 +8,8 @@ export interface ViewInfo {
   /** Unit vector from the scene towards the viewer. */
   viewAxis: Vec3;
   project(p: Vec3): { x: number; y: number };
+  /** The world point under a canvas pixel, on the plane through the view's target. Only the position within the view matters. */
+  unproject?(x: number, y: number): Vec3;
 }
 
 /** One step of a drag: world-space offset plus canvas-pixel positions. */
@@ -21,7 +23,8 @@ export interface DragMove {
 export interface DragTool {
   begin(view: ViewInfo): boolean;
   move(info: DragMove): void;
-  end(): void;
+  /** `final` is where the pointer was released, for tools that act on the whole drag (like the knife's line). */
+  end(final?: DragMove): void;
   cancel(): void;
 }
 

@@ -11,3 +11,4 @@ export * from './paletteEditor';
 export * from './download';
 export * from './extrudePanel';
 export * from './mirrorPanel';
+export * from './knifePanel';

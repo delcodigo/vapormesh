@@ -1,6 +1,7 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
 import { AddPrimitiveCommand } from './create';
 import { extrude, type ExtrudeDirection } from './extrude';
+import { knife, type CutPlane, type KnifeOptions } from './knife';
 import { mirror, type MirrorAxis } from './mirror';
 import {
   cloneGeometry,
@@ -262,4 +263,24 @@ export function mirrorSelection(state: ModelerState, settings: MirrorSettings): 
   state.execute(new ReplaceGeometryCommand('Mirror', state, result.geometry, { points: result.newPoints, polygons: result.newPolygons }));
   const note = result.skipped ? ` (${plural(result.skipped, 'polygon')} in the plane not copied)` : '';
   return done(`Mirrored ${plural(result.newPolygons.length, 'polygon')} across ${settings.axis.toUpperCase()} = ${settings.position}${note}`);
+}
+
+// --- knife -------------------------------------------------------------------------------------------------------------
+
+/**
+ * Cut the selected polygons (or every polygon, if none are selected) along a plane. Each polygon the plane passes through
+ * is split in two. The points on the cut end up selected, and so do both halves of any polygon that was selected.
+ */
+export function knifeSelection(state: ModelerState, plane: CutPlane | null, options: KnifeOptions): EditResult {
+  if (!plane || !Number.isFinite(plane.offset) || plane.normal.some((c) => !Number.isFinite(c))) return fail('Draw a longer line to cut along');
+  const picked = state.selectedPolygonIds();
+  const ids = picked.length ? picked : state.mesh.polygons.map((_, i) => i);
+  if (ids.length === 0) return fail('There is nothing to cut');
+  const result = knife(geometryOf(state), new Set(ids), plane, options);
+  if (result.split.length === 0) return fail('The cut does not pass through any polygon');
+  const polygons = new Set(state.selectedPolygons);
+  for (const { kept, added } of result.split) if (polygons.has(kept)) added.forEach((i) => polygons.add(i));
+  state.execute(new ReplaceGeometryCommand('Knife', state, result.geometry, { points: result.cutPoints, polygons: [...polygons] }));
+  const n = result.split.length;
+  return done(`Cut ${plural(n, 'polygon')}${options.separate ? ', sides separated' : ''}${result.repaired ? ` (${plural(result.repaired, 'neighbour')} got an extra point)` : ''}`);
 }

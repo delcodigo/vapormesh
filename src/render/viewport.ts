@@ -34,6 +34,8 @@ export interface DragInfo {
 export interface DragHandler {
   /** Draw a selection rectangle while dragging. Read once, after `begin` returns true. */
   readonly rubberBand?: boolean;
+  /** What to draw while dragging: a box (selection) or a line (the knife). */
+  readonly bandShape?: 'box' | 'line';
   /** Return true to take over the drag (otherwise the viewport navigates). */
   begin(view: Viewport, e: PointerEvent): boolean;
   move(info: DragInfo): void;
@@ -139,6 +141,12 @@ export class Viewport implements Projector {
     return [v.x, v.y, v.z];
   }
 
+  /** The world point under a canvas pixel (CSS pixels), on the near plane. Depth is arbitrary: ortho views look straight along an axis. */
+  unproject(x: number, y: number): Vec3 {
+    const v = new THREE.Vector3((x / Math.max(this.width, 1)) * 2 - 1, 1 - (y / Math.max(this.height, 1)) * 2, 0).unproject(this.camera);
+    return [v.x, v.y, v.z];
+  }
+
   project(p: Vec3): ScreenPoint {
     const v = new THREE.Vector3(...p).project(this.camera);
     return { x: ((v.x + 1) / 2) * this.width, y: ((1 - v.y) / 2) * this.height, z: v.z };
@@ -191,8 +199,26 @@ export class Viewport implements Projector {
     style.height = `${Math.abs(a.y - b.y)}px`;
   }
 
+  private line: HTMLDivElement | null = null;
+
+  /** A dashed line from one canvas point to another, for the knife. */
+  private showLine(a: { x: number; y: number }, b: { x: number; y: number }): void {
+    if (!this.line) {
+      this.line = document.createElement('div');
+      this.line.className = 'rubberline';
+      this.canvas.parentElement?.appendChild(this.line);
+    }
+    const { style } = this.line;
+    style.display = 'block';
+    style.left = `${a.x}px`;
+    style.top = `${a.y}px`;
+    style.width = `${Math.hypot(b.x - a.x, b.y - a.y)}px`;
+    style.transform = `rotate(${Math.atan2(b.y - a.y, b.x - a.x)}rad)`;
+  }
+
   private hideBand(): void {
     if (this.band) this.band.style.display = 'none';
+    if (this.line) this.line.style.display = 'none';
   }
 
   // --- camera -----------------------------------------------------------
@@ -303,7 +329,10 @@ export class Viewport implements Projector {
       }
       if (dragging) {
         const i = info(e);
-        if (banding) this.showBand(i.start, i.current);
+        if (banding) {
+          if (this.dragHandler!.bandShape === 'line') this.showLine(i.start, i.current);
+          else this.showBand(i.start, i.current);
+        }
         this.dragHandler!.move(i);
         return;
       }
