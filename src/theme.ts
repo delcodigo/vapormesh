@@ -4,6 +4,8 @@
  */
 export const THEME = {
   wire: 0x01cdfe, // cyan
+  /** Geometry on layers other than the active one. */
+  backgroundWire: 0x8a6fe0,
   point: 0xff71ce, // pink
   selected: 0xfffb96, // cream yellow
   selectedFill: 0xff71ce,

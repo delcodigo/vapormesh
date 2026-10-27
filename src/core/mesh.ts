@@ -31,6 +31,13 @@ export interface Polygon {
   surface: number; // index into Mesh.surfaces
 }
 
+/** Array lengths of a mesh at a moment in time, used to undo an `append`. */
+export interface MeshSize {
+  points: number;
+  polygons: number;
+  surfaces: number;
+}
+
 /** Points + polygons + surfaces: the LightWave object model. */
 export class Mesh {
   points: Vec3[] = [];
@@ -43,5 +50,33 @@ export class Mesh {
 
   addPolygon(points: number[], surface = 0): number {
     return this.polygons.push({ points, surface }) - 1;
+  }
+
+  size(): MeshSize {
+    return { points: this.points.length, polygons: this.polygons.length, surfaces: this.surfaces.length };
+  }
+
+  /** Copy another mesh's geometry into this one, reusing surfaces with the same name. Returns the prior size. */
+  append(other: Mesh): MeshSize {
+    const before = this.size();
+    const surfaceMap = other.surfaces.map((surface) => {
+      const existing = this.surfaces.findIndex((s) => s.name === surface.name);
+      if (existing >= 0) return existing;
+      this.surfaces.push({ ...surface, color: [...surface.color] });
+      return this.surfaces.length - 1;
+    });
+    const base = this.points.length;
+    for (const p of other.points) this.points.push([...p]);
+    for (const poly of other.polygons) {
+      this.polygons.push({ points: poly.points.map((i) => i + base), surface: surfaceMap[poly.surface]! });
+    }
+    return before;
+  }
+
+  /** Undo an `append` by cutting the arrays back to `size`. */
+  truncate(size: MeshSize): void {
+    this.points.length = size.points;
+    this.polygons.length = size.polygons;
+    this.surfaces.length = size.surfaces;
   }
 }

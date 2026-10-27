@@ -1,10 +1,14 @@
 import { Mesh, type Vec3 } from '@/core';
 import { History, type Command } from './history';
+import type { PrimitiveName } from './create';
 
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';
 export type SelectionOp = 'replace' | 'add' | 'remove';
 export type ToolName = 'move' | 'rotate' | 'size';
+
+/** LightWave 4 Modeler has ten layers; the active one is edited, the others show as background. */
+export const LAYER_COUNT = 10;
 
 /** Owns the mesh being modeled and the current selection. Tools mutate through this and call `changed()`. */
 export class ModelerState {
@@ -18,6 +22,10 @@ export class ModelerState {
   customPivot: Vec3 | null = null;
   /** Which tab the Numeric panel shows, or null when it is closed. */
   numericOp: ToolName | null = null;
+  /** Which primitive's create dialog is open, or null. */
+  createOp: PrimitiveName | null = null;
+  readonly layers: Mesh[];
+  activeLayer = 0;
   readonly selectedPoints = new Set<number>();
   readonly selectedPolygons = new Set<number>();
   /** Bumped on every change so views know when to rebuild. */
@@ -25,7 +33,29 @@ export class ModelerState {
 
   private listeners = new Set<() => void>();
 
-  constructor(public mesh: Mesh = new Mesh()) {}
+  constructor(mesh: Mesh = new Mesh()) {
+    this.layers = Array.from({ length: LAYER_COUNT }, (_, i) => (i === 0 ? mesh : new Mesh()));
+  }
+
+  /** The mesh of the active layer: what tools edit and clicks pick. */
+  get mesh(): Mesh {
+    return this.layers[this.activeLayer]!;
+  }
+
+  /** First layer other than the active one that holds no geometry, or null if all are used. */
+  firstEmptyLayer(): number | null {
+    const i = this.layers.findIndex((m, idx) => idx !== this.activeLayer && m.points.length === 0);
+    return i < 0 ? null : i;
+  }
+
+  setActiveLayer(layer: number): void {
+    if (layer === this.activeLayer || layer < 0 || layer >= LAYER_COUNT) return;
+    this.activeLayer = layer;
+    this.selectedPoints.clear();
+    this.selectedPolygons.clear();
+    this.dragPivot = null;
+    this.changed();
+  }
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -39,7 +69,7 @@ export class ModelerState {
   }
 
   setMesh(mesh: Mesh): void {
-    this.mesh = mesh;
+    this.layers[this.activeLayer] = mesh;
     this.selectedPoints.clear();
     this.selectedPolygons.clear();
     this.history.clear();
@@ -55,6 +85,12 @@ export class ModelerState {
 
   setPivot(pivot: Vec3 | null): void {
     this.customPivot = pivot;
+    this.changed();
+  }
+
+  setCreateOp(op: PrimitiveName | null): void {
+    if (op === this.createOp) return;
+    this.createOp = op;
     this.changed();
   }
 
@@ -77,11 +113,23 @@ export class ModelerState {
   }
 
   undo(): void {
-    if (this.history.undo()) this.changed();
+    if (this.history.undo()) {
+      this.pruneSelection();
+      this.changed();
+    }
   }
 
   redo(): void {
-    if (this.history.redo()) this.changed();
+    if (this.history.redo()) {
+      this.pruneSelection();
+      this.changed();
+    }
+  }
+
+  /** Drop selected ids that no longer exist (e.g. after undoing a create). */
+  private pruneSelection(): void {
+    for (const id of this.selectedPoints) if (id >= this.mesh.points.length) this.selectedPoints.delete(id);
+    for (const id of this.selectedPolygons) if (id >= this.mesh.polygons.length) this.selectedPolygons.delete(id);
   }
 
   setMode(mode: SelectMode): void {

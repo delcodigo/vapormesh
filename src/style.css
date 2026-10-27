@@ -94,3 +94,17 @@ button.active { background: var(--pink); border-color: var(--lo) var(--hi) var(-
 .numeric-row input.invalid { color: #fff; background: #8a1f4a; }
 .numeric-actions { display: flex; gap: 4px; }
 .numeric-actions button { flex: 1; }
+
+/* create dialog sits beside the tool panel; the numeric panel stays on the right */
+.numeric.create { right: auto; left: 118px; }
+.numeric select {
+  width: 100%; padding: 2px 3px; font: 12px 'Courier New', monospace;
+  background: var(--night); color: var(--mint); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo);
+}
+.numeric .choice { display: block; margin: 1px 0; }
+
+/* layer buttons, LightWave 4 style: filled = has geometry, pink = active */
+.menubar .layers { display: grid; grid-template-columns: repeat(10, 14px); gap: 2px; margin-left: auto; align-self: center; }
+button.layer { width: 14px; height: 14px; padding: 0; border-width: 2px; background: var(--hi); }
+button.layer.filled { background: var(--cyan); }
+button.layer.active { background: var(--pink); }

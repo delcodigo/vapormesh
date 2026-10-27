@@ -1,15 +1,19 @@
 import './style.css';
 import {
   box,
+  LAYER_COUNT,
   ModelerState,
   MoveTool,
+  PRIMITIVE_NAMES,
+  PRIMITIVES,
   RotateTool,
   SizeTool,
   type DragTool,
+  type PrimitiveName,
   type SelectMode,
   type ToolName,
 } from '@/modeler';
-import { createNumericPanel } from '@/ui';
+import { createNumericPanel, createPrimitivePanel } from '@/ui';
 import {
   MeshView,
   pickPoint,
@@ -48,12 +52,14 @@ const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : n
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
-  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span></div>
+  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
   <div class="workspace">
     <div class="toolpanel">
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
+      <div class="section">Create</div>
+      ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
       <div class="section">Select</div>
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
@@ -86,6 +92,18 @@ toolButtons.forEach((b) =>
 );
 const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
+const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
+const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
+primitiveButtons.forEach((b) =>
+  b.addEventListener('click', () => {
+    const name = b.dataset.create as PrimitiveName;
+    if (state.createOp === name) primitives.close();
+    else primitives.open(name);
+  }),
+);
+const layerButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-layer]')];
+layerButtons.forEach((b, i) => b.addEventListener('click', () => state.setActiveLayer(i)));
+
 const ACTIONS: Record<string, () => void> = {
   numeric: () => numeric.toggle(),
   all: () => state.selectAll(),
@@ -103,6 +121,11 @@ state.subscribe(() => {
   modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   toolButtons.forEach((b) => b.classList.toggle('active', b.dataset.tool === activeTool));
   numericButton.classList.toggle('active', state.numericOp !== null);
+  primitiveButtons.forEach((b) => b.classList.toggle('active', b.dataset.create === state.createOp));
+  layerButtons.forEach((b, i) => {
+    b.classList.toggle('active', i === state.activeLayer);
+    b.classList.toggle('filled', state.layers[i]!.points.length > 0);
+  });
   undoButton.disabled = !history.canUndo;
   redoButton.disabled = !history.canRedo;
   undoButton.title = history.undoLabel ?? '';
@@ -113,7 +136,7 @@ state.subscribe(() => {
 
 window.addEventListener('keydown', (e) => {
   // Typing in a numeric field must not trigger shortcuts (1/2 switch modes, space clears, Ctrl+Z undoes).
-  if (e.target instanceof HTMLInputElement) return;
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
   const mod = e.ctrlKey || e.metaKey;
   if (mod && e.key.toLowerCase() === 'z') {
     e.preventDefault();

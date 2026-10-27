@@ -1,8 +1,25 @@
 import * as THREE from 'three';
+import type { Mesh } from '@/core';
 import type { ModelerState } from '@/modeler';
 import { THEME } from '@/theme';
 
 const { wire: EDGE, point: POINT, selected: SELECTED, selectedFill: SELECTED_FILL } = THEME;
+
+/** Each edge once, as line-segment positions. */
+function uniqueEdges(mesh: Mesh): number[] {
+  const seen = new Set<string>();
+  const out: number[] = [];
+  for (const { points } of mesh.polygons) {
+    points.forEach((a, i) => {
+      const b = points[(i + 1) % points.length]!;
+      const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(...mesh.points[a]!, ...mesh.points[b]!);
+    });
+  }
+  return out;
+}
 
 /** Draws a ModelerState's mesh as wireframe + points + selection highlight. One instance per viewport. */
 export class MeshView {
@@ -18,6 +35,9 @@ export class MeshView {
     this.clear();
 
     const { mesh, mode, selectedPoints, selectedPolygons } = this.state;
+    this.state.layers.forEach((layer, i) => {
+      if (i !== this.state.activeLayer) this.addLines(uniqueEdges(layer), THEME.backgroundWire, 0);
+    });
     const edges = new Set<string>();
     const edgePos: number[] = [];
     const selEdgePos: number[] = [];
