@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import type { Vec3 } from '@/core';
+import type { Projector, ScreenPoint } from './pick';
 
 export type ViewKind = 'perspective' | 'top' | 'front' | 'right';
 type OrthoKind = Exclude<ViewKind, 'perspective'>;
@@ -14,8 +16,12 @@ const AXIS_COLORS = [0xc04040, 0x40c040, 0x4060d0];
 const MINOR = 0x303030;
 const MAJOR = 0x585858;
 const MIN_GRID_PIXELS = 24;
+const CLICK_SLOP = 4;
 
-export class Viewport {
+export class Viewport implements Projector {
+  /** Called on a left click that did not drag; coordinates are CSS pixels within the canvas. */
+  onClick?: (x: number, y: number, e: PointerEvent) => void;
+
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
@@ -64,6 +70,11 @@ export class Viewport {
       this.dirty = false;
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  project(p: Vec3): ScreenPoint {
+    const v = new THREE.Vector3(...p).project(this.camera);
+    return { x: ((v.x + 1) / 2) * this.width, y: ((1 - v.y) / 2) * this.height, z: v.z };
   }
 
   // --- camera -----------------------------------------------------------
@@ -137,14 +148,22 @@ export class Viewport {
     c.addEventListener('contextmenu', (e) => e.preventDefault());
 
     let last: { x: number; y: number } | null = null;
+    let start = { x: 0, y: 0 };
     let button = -1;
+    let moved = false;
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
-      last = { x: e.clientX, y: e.clientY };
+      last = start = { x: e.clientX, y: e.clientY };
       button = e.button;
+      moved = false;
     });
     c.addEventListener('pointermove', (e) => {
       if (!last) return;
+      // Small wobble between press and release still counts as a click.
+      if (!moved) {
+        if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < CLICK_SLOP) return;
+        moved = true;
+      }
       const dx = e.clientX - last.x;
       const dy = e.clientY - last.y;
       last = { x: e.clientX, y: e.clientY };
@@ -152,12 +171,19 @@ export class Viewport {
       if (panning) this.pan(dx, dy);
       else if (button === 0 && this.kind === 'perspective') this.orbit(dx, dy);
     });
-    const end = (e: PointerEvent) => {
+    const release = (e: PointerEvent) => {
       last = null;
       if (c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
     };
-    c.addEventListener('pointerup', end);
-    c.addEventListener('pointercancel', end);
+    c.addEventListener('pointerup', (e) => {
+      const click = last !== null && !moved && button === 0;
+      release(e);
+      if (click) {
+        const r = c.getBoundingClientRect();
+        this.onClick?.(e.clientX - r.left, e.clientY - r.top, e);
+      }
+    });
+    c.addEventListener('pointercancel', release);
 
     c.addEventListener(
       'wheel',
