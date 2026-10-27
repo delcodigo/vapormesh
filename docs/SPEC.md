@@ -13,6 +13,10 @@ Status of each item: **Decided** (by the author), **Proposed** (a default, chang
   3. **Animator**: keyframed object animation for game assets.
   4. **Layout**: composes scenes with camera and lights and renders **cutscenes as video**.
   5. **Tracker**: music, in a standard module format.
+- **UV editing is a first-class feature.** UVs are stored **per polygon corner**, so one atlas texture can
+  serve a whole model (a character with many parts) or each face can have its own texture, as some
+  mid-90s games did. A texture belongs to a **surface**; surfaces may share an image. There is a 2D UV
+  editor with projections, texel snapping and the same move/rotate/size tools as the Modeler.
 - **For the author, in the browser.** One app with a tab per tool, in the LightWave 4 manner.
 - **Engines are someone else's job.** Engine support, if any, comes later as small plugins or libraries.
 - The constraints exist to keep assets in the period look and to keep the tools small.
@@ -60,9 +64,11 @@ survives: **automatic texture coordinates at a fixed texel density** (box projec
 
 ## Order (proposed)
 
-1. Palette, indexed textures and UVs in the Modeler, with textured surfaces in the renderer.
-2. Texture editor.
-3. glTF export, so assets can be tried in Unity early.
-4. Layout: camera, lights, keyframes, then video and PNG export.
-5. Animator.
-6. Tracker, any time.
+1. Palette, indexed images, per-corner UVs and surface textures, rendered palette-mapped (file format v2).
+2. PNG import (to the project palette), so there are textures to test with.
+3. UV editor.
+4. Texture editor.
+5. glTF export, so assets can be tried in Unity early.
+6. Layout: camera, lights, keyframes, then video and PNG export.
+7. Animator.
+8. Tracker, any time.
