@@ -1,11 +1,16 @@
 import { Mesh } from '@/core';
+import { History, type Command } from './history';
 
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';
+export type ToolName = 'move';
 
 /** Owns the mesh being modeled and the current selection. Tools mutate through this and call `changed()`. */
 export class ModelerState {
   mode: SelectMode = 'points';
+  /** Tool that owns left-drags in the viewports; null means drags only navigate. */
+  activeTool: ToolName | null = null;
+  readonly history = new History();
   readonly selectedPoints = new Set<number>();
   readonly selectedPolygons = new Set<number>();
   /** Bumped on every change so views know when to rebuild. */
@@ -30,7 +35,34 @@ export class ModelerState {
     this.mesh = mesh;
     this.selectedPoints.clear();
     this.selectedPolygons.clear();
+    this.history.clear();
     this.changed();
+  }
+
+  setTool(tool: ToolName | null): void {
+    if (tool === this.activeTool) return;
+    this.activeTool = tool;
+    this.changed();
+  }
+
+  /** Apply a command and make it undoable. */
+  execute(cmd: Command): void {
+    cmd.redo();
+    this.record(cmd);
+  }
+
+  /** Make an already-applied edit undoable (used by interactive tools that preview live). */
+  record(cmd: Command): void {
+    this.history.record(cmd);
+    this.changed();
+  }
+
+  undo(): void {
+    if (this.history.undo()) this.changed();
+  }
+
+  redo(): void {
+    if (this.history.redo()) this.changed();
   }
 
   setMode(mode: SelectMode): void {

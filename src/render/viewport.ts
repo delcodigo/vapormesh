@@ -2,23 +2,33 @@ import * as THREE from 'three';
 import type { Vec3 } from '@/core';
 import type { Projector, ScreenPoint } from './pick';
 
-export type ViewKind = 'perspective' | 'top' | 'front' | 'right';
+export type ViewKind = 'perspective' | 'top' | 'face' | 'left';
 type OrthoKind = Exclude<ViewKind, 'perspective'>;
 
 /** Orthographic views look down an axis; `up` keeps the screen orientation LightWave-like. */
 const ORTHO: Record<OrthoKind, { dir: THREE.Vector3Tuple; up: THREE.Vector3Tuple; plane: [number, number] }> = {
   top: { dir: [0, 1, 0], up: [0, 0, -1], plane: [0, 2] }, // XZ
-  front: { dir: [0, 0, 1], up: [0, 1, 0], plane: [0, 1] }, // XY
-  right: { dir: [1, 0, 0], up: [0, 1, 0], plane: [2, 1] }, // ZY
+  face: { dir: [0, 0, 1], up: [0, 1, 0], plane: [0, 1] }, // XY
+  left: { dir: [-1, 0, 0], up: [0, 1, 0], plane: [2, 1] }, // ZY, +Z to the right as in LightWave
 };
 
-const AXIS_COLORS = [0xc04040, 0x40c040, 0x4060d0];
-const MINOR = 0x303030;
-const MAJOR = 0x585858;
+const AXIS_COLORS = [0x8a4a4a, 0x4a8a4a, 0x4a5a9a];
+const MINOR = 0x575757;
+const MAJOR = 0x686868;
+const BACKGROUND = 0x4a4a4a;
 const MIN_GRID_PIXELS = 24;
 const CLICK_SLOP = 4;
 
+/** A tool's claim on left-drags. `offset` is the cumulative world-space movement within the view plane. */
+export interface DragHandler {
+  /** Return true to take over the drag (otherwise the viewport navigates). */
+  begin(view: Viewport): boolean;
+  move(offset: Vec3): void;
+  end(): void;
+}
+
 export class Viewport implements Projector {
+  dragHandler?: DragHandler;
   /** Called on a left click that did not drag; coordinates are CSS pixels within the canvas. */
   onClick?: (x: number, y: number, e: PointerEvent) => void;
 
@@ -45,6 +55,7 @@ export class Viewport implements Projector {
     readonly kind: ViewKind = 'perspective',
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+    this.renderer.setClearColor(BACKGROUND);
     this.camera =
       kind === 'perspective'
         ? new THREE.PerspectiveCamera(45, 1, 0.1, 1000)
@@ -70,6 +81,19 @@ export class Viewport implements Projector {
       this.dirty = false;
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  get isOrtho(): boolean {
+    return this.kind !== 'perspective';
+  }
+
+  /** World-space offset in the view plane for a screen drag (pixels, y down). */
+  private screenToWorld(dxPx: number, dyPx: number): Vec3 {
+    const k = this.worldPerPixel();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
+    const v = right.multiplyScalar(dxPx * k).addScaledVector(up, -dyPx * k);
+    return [v.x, v.y, v.z];
   }
 
   project(p: Vec3): ScreenPoint {
@@ -151,11 +175,13 @@ export class Viewport implements Projector {
     let start = { x: 0, y: 0 };
     let button = -1;
     let moved = false;
+    let dragging = false;
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
       last = start = { x: e.clientX, y: e.clientY };
       button = e.button;
       moved = false;
+      dragging = false;
     });
     c.addEventListener('pointermove', (e) => {
       if (!last) return;
@@ -163,6 +189,11 @@ export class Viewport implements Projector {
       if (!moved) {
         if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < CLICK_SLOP) return;
         moved = true;
+        dragging = button === 0 && !e.shiftKey && (this.dragHandler?.begin(this) ?? false);
+      }
+      if (dragging) {
+        this.dragHandler!.move(this.screenToWorld(e.clientX - start.x, e.clientY - start.y));
+        return;
       }
       const dx = e.clientX - last.x;
       const dy = e.clientY - last.y;
@@ -172,6 +203,8 @@ export class Viewport implements Projector {
       else if (button === 0 && this.kind === 'perspective') this.orbit(dx, dy);
     });
     const release = (e: PointerEvent) => {
+      if (dragging) this.dragHandler?.end();
+      dragging = false;
       last = null;
       if (c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
     };

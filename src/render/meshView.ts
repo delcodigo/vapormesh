@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import type { ModelerState } from '@/modeler';
 
-const EDGE = 0xb4b4b4;
-const POINT = 0x40c0ff;
-const SELECTED = 0xffd000;
-const SELECTED_POLY = 0xff8000;
+const EDGE = 0xc8c8c8;
+const POINT = 0xffffff;
+const SELECTED = 0xf4e060;
+const SELECTED_POLY = 0xf4e060;
 
 /** Draws a ModelerState's mesh as wireframe + points + selection highlight. One instance per viewport. */
 export class MeshView {
@@ -52,7 +52,7 @@ export class MeshView {
       const mat = new THREE.MeshBasicMaterial({
         color: SELECTED_POLY,
         transparent: true,
-        opacity: 0.35,
+        opacity: 0.18,
         side: THREE.DoubleSide,
         depthTest: false,
       });
@@ -65,7 +65,7 @@ export class MeshView {
       const all: number[] = [];
       const sel: number[] = [];
       mesh.points.forEach((p, i) => (selectedPoints.has(i) ? sel : all).push(...p));
-      this.addPoints(all, POINT, 5, 4);
+      this.addPoints(all, POINT, 4, 4);
       this.addPoints(sel, SELECTED, 8, 5);
     }
   }
