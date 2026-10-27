@@ -100,6 +100,12 @@ export class Viewport implements Projector {
     return this.kind !== 'perspective';
   }
 
+  /** Unit vector from the scene towards the viewer. */
+  get viewAxis(): Vec3 {
+    const v = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
+    return [v.x, v.y, v.z];
+  }
+
   /** World-space offset in the view plane for a screen drag (pixels, y down). */
   private screenToWorld(dxPx: number, dyPx: number): Vec3 {
     const k = this.worldPerPixel();

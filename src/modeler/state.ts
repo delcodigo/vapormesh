@@ -1,10 +1,10 @@
-import { Mesh } from '@/core';
+import { Mesh, type Vec3 } from '@/core';
 import { History, type Command } from './history';
 
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';
 export type SelectionOp = 'replace' | 'add' | 'remove';
-export type ToolName = 'move';
+export type ToolName = 'move' | 'rotate' | 'size';
 
 /** Owns the mesh being modeled and the current selection. Tools mutate through this and call `changed()`. */
 export class ModelerState {
@@ -12,6 +12,8 @@ export class ModelerState {
   /** Tool that owns left-drags in the viewports; null means drags only navigate. */
   activeTool: ToolName | null = null;
   readonly history = new History();
+  /** Pivot held fixed by a rotate/size drag in progress, so the marker doesn't follow the points. */
+  dragPivot: Vec3 | null = null;
   readonly selectedPoints = new Set<number>();
   readonly selectedPolygons = new Set<number>();
   /** Bumped on every change so views know when to rebuild. */
@@ -111,6 +113,33 @@ export class ModelerState {
     const sel = this.selection;
     const inverted = Array.from({ length: this.selectableCount }, (_, i) => i).filter((i) => !sel.has(i));
     this.applySelection(inverted, 'replace');
+  }
+
+  /** Points a transform acts on: the selection (or its polygons' points), or the whole object if empty. */
+  affectedPoints(): number[] {
+    const { mesh, mode, selection } = this;
+    if (selection.size === 0) return mesh.points.map((_, i) => i);
+    if (mode === 'points') return [...selection];
+    return [...new Set([...selection].flatMap((pi) => mesh.polygons[pi]!.points))];
+  }
+
+  /** Centre of the bounding box of the given points. */
+  centerOf(ids: number[]): Vec3 | null {
+    if (ids.length === 0) return null;
+    const lo: Vec3 = [Infinity, Infinity, Infinity];
+    const hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+    for (const id of ids) {
+      this.mesh.points[id]!.forEach((c, axis) => {
+        lo[axis] = Math.min(lo[axis]!, c);
+        hi[axis] = Math.max(hi[axis]!, c);
+      });
+    }
+    return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  }
+
+  /** Where rotate/size act from. */
+  pivot(): Vec3 | null {
+    return this.dragPivot ?? this.centerOf(this.affectedPoints());
   }
 
   clearSelection(): void {

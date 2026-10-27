@@ -1,5 +1,14 @@
 import './style.css';
-import { box, ModelerState, MoveTool, type SelectMode, type ToolName } from '@/modeler';
+import {
+  box,
+  ModelerState,
+  MoveTool,
+  RotateTool,
+  SizeTool,
+  type DragTool,
+  type SelectMode,
+  type ToolName,
+} from '@/modeler';
 import {
   MeshView,
   pickPoint,
@@ -22,10 +31,19 @@ const MODES: [SelectMode, string, string][] = [
   ['points', 'Point', '1'],
   ['polygons', 'Polygon', '2'],
 ];
-const TOOLS: [ToolName, string][] = [['move', 'Move']];
+const TOOLS: [ToolName, string][] = [
+  ['move', 'Move'],
+  ['rotate', 'Rotate'],
+  ['size', 'Size'],
+];
 
 const state = new ModelerState(box(1, 1, 1));
-const move = new MoveTool(state);
+const dragTools: Record<ToolName, DragTool> = {
+  move: new MoveTool(state),
+  rotate: new RotateTool(state),
+  size: new SizeTool(state),
+};
+const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : null);
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -132,14 +150,17 @@ const viewports = [...document.querySelectorAll('canvas')].map((c, i) => {
     get rubberBand() {
       return state.activeTool === null;
     },
-    begin: (v, e) => (state.activeTool === 'move' ? !e.shiftKey && move.begin(v) : v.isOrtho),
-    move: (i) => {
-      if (state.activeTool === 'move') move.move(i.offset);
+    begin: (v, e) => {
+      const tool = activeDragTool();
+      return tool ? !e.shiftKey && tool.begin(v) : v.isOrtho;
     },
-    end: (i) => (state.activeTool === 'move' ? move.end() : boxSelect(vp, i)),
-    cancel: () => {
-      if (state.activeTool === 'move') move.end();
+    move: (i) => activeDragTool()?.move(i),
+    end: (i) => {
+      const tool = activeDragTool();
+      if (tool) tool.end();
+      else boxSelect(vp, i);
     },
+    cancel: () => activeDragTool()?.cancel(),
   };
   return { vp, view };
 });

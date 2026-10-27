@@ -7,6 +7,7 @@ export const THEME = {
   point: 0xff71ce, // pink
   selected: 0xfffb96, // cream yellow
   selectedFill: 0xff71ce,
+  pivot: 0x05ffa1, // mint
   gridMinor: 0x3b2a7a,
   gridMajor: 0x5b45a8,
   /** X, Y, Z axis lines. */

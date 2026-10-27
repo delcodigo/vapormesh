@@ -59,6 +59,12 @@ export class MeshView {
     this.addLines(edgePos, EDGE, 2);
     this.addLines(selEdgePos, SELECTED, 3);
 
+    const { activeTool } = this.state;
+    if (activeTool === 'rotate' || activeTool === 'size') {
+      const pivot = this.state.pivot();
+      if (pivot) this.addPoints([...pivot], THEME.pivot, 11, 6);
+    }
+
     if (mode === 'points') {
       const all: number[] = [];
       const sel: number[] = [];
