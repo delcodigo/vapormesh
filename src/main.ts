@@ -86,8 +86,8 @@ const VIEW_MODES: [ViewMode, string][] = [
   ['shaded', 'Shaded'],
   ['shaded-wire', 'Shaded+Wire'],
 ];
-/** Single-key tool shortcuts. Q is selection: no tool, so drags draw a selection box. */
-const TOOL_KEYS: Record<string, ToolName | null> = { m: 'move', r: 'rotate', s: 'size', q: null };
+/** Single-key tool shortcuts. P flips between Point and Polygon mode. Q is selection: no tool, so drags draw a selection box. */
+const TOOL_KEYS: Record<string, ToolName | null> = { m: 'move', r: 'rotate', s: 'size', e: 'extrude', k: 'knife', q: null };
 const SNAPS: [number, string][] = [
   [0, 'Off'],
   [0.05, '0.05'],
@@ -158,10 +158,10 @@ app.innerHTML = `
       <div class="section">Deform</div>
       ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <div class="section">Multiply</div>
-      ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first">${label}</button>`).join('')}
+      ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}">${label}</button>`).join('')}
       <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
       <div class="section">Tools</div>
-      <button data-tool="knife" title="Drag a line across polygons to cut them along it">Knife</button>
+      <button data-tool="knife" title="Drag a line across polygons to cut them along it (K)">Knife</button>
       <button data-action="boolean" title="Add, subtract or intersect the solids on two layers">Boolean</button>
       <div class="section">Create</div>
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
@@ -195,7 +195,7 @@ app.innerHTML = `
     </div>
   </div>
   <div class="bottombar">
-    ${MODES.map(([m, label]) => `<button data-mode="${m}">${label}</button>`).join('')}
+    ${MODES.map(([m, label, key]) => `<button data-mode="${m}" title="${label} mode (${key}; P switches)">${label}</button>`).join('')}
     <span class="readout"></span>
     <span class="message" role="status"></span>
     <span class="spacer"></span>
@@ -429,6 +429,7 @@ window.addEventListener('keydown', (e) => {
     // the transform tools and plain selection, which are used constantly: keys set them rather than toggle, so a
     // press always leaves you in that tool
     if (!e.altKey && Object.hasOwn(TOOL_KEYS, key)) state.setTool(TOOL_KEYS[key]!);
+    if (key === 'p') state.setMode(state.mode === 'points' ? 'polygons' : 'points');
     if (key === 'n') numeric.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
