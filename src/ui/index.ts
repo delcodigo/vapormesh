@@ -13,6 +13,7 @@ export * from './deformPanel';
 export * from './extrudePanel';
 export * from './positionPanel';
 export * from './arrayPanel';
+export * from './lathePanel';
 export * from './mirrorPanel';
 export * from './knifePanel';
 export * from './booleanPanel';

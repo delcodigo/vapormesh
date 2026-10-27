@@ -9,6 +9,7 @@ import {
   deleteSelection,
   AxisDeformTool,
   ExtrudeTool,
+  LatheTool,
   growSelection,
   hideSelection,
   selectConnected,
@@ -39,6 +40,7 @@ import {
   createDeformPanel,
   createArrayPanel,
   createExtrudePanel,
+  createLathePanel,
   createPositionPanel,
   createBooleanPanel,
   createFileActions,
@@ -48,6 +50,7 @@ import {
   type EditorBridge,
   type DeformPanel,
   type ExtrudePanel,
+  type LathePanel,
   type KnifePanel,
   createNumericPanel,
   createPaletteEditor,
@@ -102,7 +105,7 @@ const TABS: [TabName, string][] = [
 /** The tab a drag tool lives on, so choosing it with a key shows its neighbours. Move, Rotate and Size are always visible. */
 const TOOL_TAB: Partial<Record<ToolName, TabName>> = {
   stretch: 'modify', drag: 'modify', magnet: 'modify', bend: 'modify', twist: 'modify', taper: 'modify',
-  extrude: 'multiply', bevel: 'multiply', knife: 'multiply',
+  extrude: 'multiply', bevel: 'multiply', lathe: 'multiply', knife: 'multiply',
 };
 const SNAPS: [number, string][] = [
   [0, 'Off'],
@@ -115,6 +118,7 @@ const SNAPS: [number, string][] = [
 const MULTIPLY_TOOLS: [ToolName, string][] = [
   ['extrude', 'Extrude'],
   ['bevel', 'Bevel'],
+  ['lathe', 'Lathe'],
 ];
 const DEFORM_TOOLS: [ToolName, string][] = [
   ['stretch', 'Stretch'],
@@ -139,6 +143,7 @@ const requested = new URLSearchParams(location.search).get('view');
 if (VIEW_MODES.some(([m]) => m === requested)) display.mode = requested as ViewMode;
 let knifePanel: KnifePanel | null = null;
 let deformPanel: DeformPanel | null = null;
+let lathePanel: LathePanel | null = null;
 let extrudePanel: ExtrudePanel | null = null; // created once the page exists; the tools ask it for their options
 const dragTools: Record<ToolName, DragTool> = {
   move: new MoveTool(state),
@@ -146,6 +151,7 @@ const dragTools: Record<ToolName, DragTool> = {
   size: new SizeTool(state),
   extrude: new ExtrudeTool(state, () => extrudePanel!.options('extrude'), 'Extrude'),
   bevel: new ExtrudeTool(state, () => extrudePanel!.options('bevel'), 'Bevel'),
+  lathe: new LatheTool(state, () => lathePanel!.options(), (c) => lathePanel!.setCenter(c), (r) => notify(r.message, !r.ok)),
   stretch: new StretchTool(state),
   drag: new PointDragTool(state),
   magnet: new MagnetTool(state, () => ({ radius: deformPanel!.magnetRadius() })),
@@ -178,7 +184,7 @@ app.innerHTML = `
         ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       </div>
       <div class="tabpage" data-page="multiply">
-        ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}">${label}</button>`).join('')}
+        ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="${t === 'lathe' ? 'Select the profile points in order, then drag in a view to place the axis' : `Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}`}">${label}</button>`).join('')}
         <button data-action="array" title="Copy polygons several times, stepping each copy">Array</button>
         <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
         <button data-tool="knife" title="Drag a line across polygons to cut them along it; hold Shift for a horizontal or vertical slice (K)">Knife</button>
@@ -287,6 +293,7 @@ toolButtons.forEach((b) =>
 );
 const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
 deformPanel = createDeformPanel(state, app.querySelector('.workspace')!);
+lathePanel = createLathePanel(state, app.querySelector('.workspace')!);
 extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
 const lassoButton = app.querySelector<HTMLButtonElement>('[data-action="lasso"]')!;

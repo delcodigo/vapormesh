@@ -1,4 +1,5 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
+import { lathe, MAX_LATHE_POLYGONS, MAX_LATHE_SIDES, type LatheAxis } from './lathe';
 import { array, MAX_ARRAY_COUNT, MAX_ARRAY_POLYGONS } from './array';
 import { booleanMeshes, BooleanError, type BooleanOp } from './boolean';
 import { AddPrimitiveCommand } from './create';
@@ -377,4 +378,45 @@ export function arraySelection(state: ModelerState, settings: ArraySettings): Ed
   const result = array(geo, new Set(ids), { count, offset, rotate, scale, pivot });
   state.execute(new ReplaceGeometryCommand('Array', state, result.geometry, { points: result.newPoints, polygons: result.newPolygons }));
   return done(`Added ${count === 1 ? '1 copy' : `${count} copies`} of ${plural(ids.length, 'polygon')}`);
+}
+
+// --- lathe -----------------------------------------------------------------------------------------------------------
+
+export interface LatheSettings {
+  axis: LatheAxis;
+  center: Vec3;
+  sides: number;
+  degrees: number;
+  closed: boolean;
+}
+
+/** The profile (the selected points, in selection order) and whether the settings make sense, or what is wrong. */
+export function checkLathe(state: ModelerState, settings: LatheSettings): { profile: number[] } | { error: string } {
+  const { sides, degrees, center, closed } = settings;
+  if (state.mode !== 'points') return { error: 'Switch to Point mode and select the profile points, in order along the outline' };
+  const profile = [...state.selectedPoints].filter((i) => i < state.mesh.points.length);
+  if (profile.length < 2) return { error: 'Select at least two points, in order along the profile' };
+  if (closed && profile.length < 3) return { error: 'A closed profile needs at least three points' };
+  if (!Number.isInteger(sides) || sides < 3) return { error: 'The number of sides must be a whole number, at least 3' };
+  if (sides > MAX_LATHE_SIDES) return { error: `At most ${MAX_LATHE_SIDES} sides` };
+  if (![degrees, ...center].every(Number.isFinite)) return { error: 'Type a number in every field' };
+  if (degrees === 0 || Math.abs(degrees) > 360) return { error: 'The angle must be between -360 and 360, and not 0' };
+  const segments = closed ? profile.length : profile.length - 1;
+  if (segments * sides > MAX_LATHE_POLYGONS) return { error: `That would add ${segments * sides} polygons; the limit is ${MAX_LATHE_POLYGONS}` };
+  return { profile };
+}
+
+/**
+ * Spin the selected points, taken in the order they were selected, about an axis to make a surface of revolution. The
+ * profile points stay where they are as the first ring. The new polygons end up selected.
+ */
+export function latheSelection(state: ModelerState, settings: LatheSettings): EditResult {
+  const checked = checkLathe(state, settings);
+  if ('error' in checked) return fail(checked.error);
+  const { profile } = checked;
+  const { sides, center } = settings;
+  const result = lathe(geometryOf(state), profile, { axis: settings.axis, center, sides, degrees: settings.degrees, closed: settings.closed });
+  if (result.newPolygons.length === 0) return fail('The profile lies on the axis, so there is nothing to spin');
+  state.execute(new ReplaceGeometryCommand('Lathe', state, result.geometry, { points: result.newPoints, polygons: result.newPolygons }));
+  return done(`Made ${plural(result.newPolygons.length, 'polygon')} by spinning ${plural(profile.length, 'point')} ${sides} steps about ${settings.axis.toUpperCase()}`);
 }

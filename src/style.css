@@ -178,6 +178,11 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .numeric.position .msg:empty { display: none; }
 
 .numeric.array { width: 232px; }
+.numeric.lathe .numeric-row select { width: 100%; }
+.numeric.lathe .status { margin: 4px 0; padding: 2px 4px; font-size: 11px; font-weight: bold; color: #8a1f4a; background: var(--night); border: 1px solid var(--lo); }
+.numeric.lathe .status.ready { color: var(--mint); }
+.numeric.lathe .numeric-heading { justify-content: space-between; }
+.numeric.lathe .numeric-row input { min-width: 0; }
 .numeric.array .numeric-row input { min-width: 0; }
 
 /* deformer options: they show with the tool */

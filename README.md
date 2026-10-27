@@ -13,13 +13,13 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 
 | Done | |
 |------|---|
-| Modeling | Box, ball, disc and cone; move, rotate, size, a numeric panel and a live position readout; extrude, bevel, array/clone, mirror; stretch, drag, magnet, bend, twist, taper; knife; boolean between layers; select connected, grow, shrink, lasso, grid snap, hide; delete, merge, weld, flip, make polygon, triple; cut, copy and paste; ten layers |
+| Modeling | Box, ball, disc and cone; move, rotate, size, a numeric panel and a live position readout; extrude, bevel, array/clone, lathe, mirror; stretch, drag, magnet, bend, twist, taper; knife; boolean between layers; select connected, grow, shrink, lasso, grid snap, hide; delete, merge, weld, flip, make polygon, triple; cut, copy and paste; ten layers |
 | Surfaces and textures | Per-surface colour (from the palette), diffuse, luminosity, specular, smoothing and angle; indexed images, PNG import, per-corner UVs, a UV editor with projections |
 | Palette | One 256-colour palette per project, a palette editor, `.gpl` and `.act` import and export, palettes from pictures |
 | Look | A retro Shaded view: low resolution, nearest-neighbour upscaling, ordered dither, mapped to the project palette |
 | Projects | Save and load `.vmesh` files, with undo for everything ([format](docs/FORMAT.md)) |
 
-Not yet: lathe and smooth shift (the rest of Multiply), the texture painter, glTF export, Layout and cutscenes,
+Not yet: smooth shift (the rest of Multiply), the texture painter, glTF export, Layout and cutscenes,
 the animator, the tracker.
 
 ## The panels
@@ -31,10 +31,13 @@ groups the rest in tabs, one at a time:
 |-----|---|
 | Create | Box, Ball, Disc, Cone |
 | Modify | Numeric, Position, and the deformers: Stretch, Drag, Magnet, Bend, Twist, Taper |
-| Multiply | Extrude, Bevel, Array, Mirror, Knife, Boolean |
+| Multiply | Extrude, Bevel, Array, Lathe, Mirror, Knife, Boolean |
 | Pick | All, Invert, None, Connected, Grow, Shrink, Lasso; Hide, Hide Others, Unhide All |
 | Edit | Delete, Merge Points, Weld, Flip, Make Polygon, Triple |
 | Surface | Surfaces, Images, UV Editor, Palette |
+
+To **lathe**, click the profile points in order along the outline (Point mode, bottom to top), choose Lathe, then drag in a
+view to place the axis: the shape follows the pointer. The options set the axis direction, the sides and the angle.
 
 New, Load and Save are in the menu bar. Choosing a tool with its key shows its tab, and the last tab is remembered.
 

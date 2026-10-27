@@ -12,7 +12,7 @@ export type SelectionOp = 'replace' | 'add' | 'remove';
 export type TransformToolName = 'move' | 'rotate' | 'size';
 /** Every tool that owns drags in the viewports. */
 export type DeformToolName = 'stretch' | 'drag' | 'magnet' | 'bend' | 'twist' | 'taper';
-export type ToolName = TransformToolName | DeformToolName | 'extrude' | 'bevel' | 'knife';
+export type ToolName = TransformToolName | DeformToolName | 'extrude' | 'bevel' | 'lathe' | 'knife';
 
 /** LightWave 4 Modeler has ten layers; the active one is edited, the others show as background. */
 export const LAYER_COUNT = 10;

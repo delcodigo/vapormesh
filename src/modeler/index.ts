@@ -14,6 +14,8 @@ export * from './geometry';
 export * from './extrude';
 export * from './extrudeTool';
 export * from './array';
+export * from './lathe';
+export * from './latheTool';
 export * from './mirror';
 export * from './knife';
 export * from './knifeTool';
