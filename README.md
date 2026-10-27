@@ -50,6 +50,7 @@ New, Load and Save are in the menu bar. Choosing a tool with its key shows its t
 | `1` `2` `P` | Point mode, Polygon mode, switch between them |
 | `N` `I` `U` | Numeric panel, Position panel, UV editor |
 | `Space` | Clear the selection |
+| `F` | Make a polygon (a face) from the selected points, in the order you picked them |
 | `Delete` | Delete the selection |
 | `Ctrl` + `A` `I` | Select all, invert the selection |
 | `Ctrl` + `C` `X` `V` | Copy, cut, paste |

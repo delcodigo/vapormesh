@@ -208,7 +208,7 @@ app.innerHTML = `
         <button data-edit="merge" title="Merge points that sit on top of each other: the selected ones, or all">Merge Points</button>
         <button data-edit="weld" title="Weld the selected points into one, at their average">Weld</button>
         <button data-edit="flip" title="Turn the selected polygons (or all) inside out">Flip</button>
-        <button data-edit="make" title="Make a polygon from the selected points, joined in the order you selected them (Shift-click)">Make Polygon</button>
+        <button data-edit="make" title="Make a polygon from the selected points, joined in the order you selected them (Shift-click) (F)">Make Polygon</button>
         <button data-edit="triple" title="Split the selected polygons (or all) into triangles">Triple</button>
       </div>
       <div class="tabpage" data-page="surface">
@@ -493,6 +493,7 @@ window.addEventListener('keydown', (e) => {
     // press always leaves you in that tool
     if (!e.altKey && Object.hasOwn(TOOL_KEYS, key)) state.setTool(TOOL_KEYS[key]!);
     if (key === 'p') state.setMode(state.mode === 'points' ? 'polygons' : 'points');
+    if (key === 'f') runEdit('make');
     if (key === 'n') numeric.toggle();
     if (key === 'i') positionPanel.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
