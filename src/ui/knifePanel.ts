@@ -16,7 +16,7 @@ export function createKnifePanel(state: ModelerState, host: HTMLElement): KnifeP
   el.hidden = true;
   el.innerHTML = `
     <div class="numeric-title"><span>Knife</span></div>
-    <div class="hint">Drag a line across a view. It cuts the selected polygons, or all of them, along the plane through the line, front to back.</div>
+    <div class="hint">Drag a line across a view. It cuts the selected polygons, or all of them, along the plane through the line, front to back. Hold Shift while dragging for a straight horizontal or vertical slice.</div>
     <label class="choice" title="The sides stop sharing the points on the cut, so they can be moved apart"><input type="checkbox" data-f="separate"> Separate the sides</label>
     <div class="numeric-heading"><span>Slice at a position</span></div>
     <div class="numeric-row"><select data-f="axis"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select><input type="text" data-f="position" value="0" inputmode="decimal" spellcheck="false"></div>

@@ -101,6 +101,11 @@ function polygonsWhere(mesh: Mesh, proj: Projector, test: (x: number, y: number)
   return ids;
 }
 
+/** Pull `end` onto the horizontal or vertical line through `start`, whichever it is nearer to. A tie goes horizontal. */
+export function constrainToAxis(start: { x: number; y: number }, end: { x: number; y: number }): { x: number; y: number } {
+  return Math.abs(end.x - start.x) >= Math.abs(end.y - start.y) ? { x: end.x, y: start.y } : { x: start.x, y: end.y };
+}
+
 /** A freehand outline in screen pixels, for the lasso. */
 export type Lasso = { x: number; y: number }[];
 const inLasso = (lasso: Lasso) => (x: number, y: number) => lasso.length >= 3 && inside(lasso, x, y);

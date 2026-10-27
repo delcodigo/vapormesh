@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { defaultPalette, type Palette, type Vec3 } from '@/core';
 import { THEME } from '@/theme';
-import type { Projector, ScreenPoint } from './pick';
+import { constrainToAxis, type Projector, type ScreenPoint } from './pick';
 import type { DisplaySettings } from './retro';
 import { DEFAULT_VIEW, normalizeView, relevantView, VIEW_LIMITS, type ViewState } from './viewState';
 import { RetroPass } from './retroPass';
@@ -322,11 +322,14 @@ export class Viewport implements Projector {
     let dragging = false;
     let banding = false;
     let path: { x: number; y: number }[] = [];
+    // Shift as of the last move, so releasing Shift just before the button doesn't change the line you saw
+    let straight = false;
     const info = (e: PointerEvent): DragInfo => ({
       path,
       offset: this.screenToWorld(e.clientX - start.x, e.clientY - start.y),
       start: startRel,
-      current: rel(e),
+      // holding Shift while drawing a line (the knife) keeps it horizontal or vertical
+      current: straight && this.dragHandler?.bandShape === 'line' ? constrainToAxis(startRel, rel(e)) : rel(e),
       shift: e.shiftKey,
       ctrl: e.ctrlKey || e.metaKey,
     });
@@ -336,6 +339,7 @@ export class Viewport implements Projector {
       last = start = { x: e.clientX, y: e.clientY };
       startRel = rel(e);
       path = [startRel];
+      straight = false;
       button = e.button;
       moved = false;
       dragging = false;
@@ -350,6 +354,7 @@ export class Viewport implements Projector {
         banding = dragging && !!this.dragHandler?.rubberBand;
       }
       if (dragging) {
+        straight = e.shiftKey;
         if (this.dragHandler!.bandShape === 'lasso') path.push(rel(e));
         const i = info(e);
         if (banding) {

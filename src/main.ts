@@ -163,7 +163,7 @@ app.innerHTML = `
       ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}">${label}</button>`).join('')}
       <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
       <div class="section">Tools</div>
-      <button data-tool="knife" title="Drag a line across polygons to cut them along it (K)">Knife</button>
+      <button data-tool="knife" title="Drag a line across polygons to cut them along it; hold Shift for a horizontal or vertical slice (K)">Knife</button>
       <button data-action="boolean" title="Add, subtract or intersect the solids on two layers">Boolean</button>
       <div class="section">Create</div>
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
@@ -481,7 +481,8 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
     },
     begin: (v, e, press) => {
       const tool = activeDragTool();
-      return tool ? !e.shiftKey && tool.begin(v, press) : v.isOrtho;
+      // Shift-drag pans, except with the knife, where it straightens the line
+      return tool ? (!e.shiftKey || state.activeTool === 'knife') && tool.begin(v, press) : v.isOrtho;
     },
     move: (i) => activeDragTool()?.move(i),
     end: (i) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Mesh } from '@/core';
-import { pickPoint, pickPolygon, pointsInRect, polygonsInRect, type Projector } from './pick';
+import { constrainToAxis, pickPoint, pickPolygon, pointsInRect, polygonsInRect, type Projector } from './pick';
 
 // Orthographic-ish: x,y map straight to pixels, z is depth.
 const proj: Projector = { project: ([x, y, z]) => ({ x, y, z }) };
@@ -43,5 +43,20 @@ describe('box queries', () => {
     const q = quadAt(m, 0); // centre (5, 5)
     expect(polygonsInRect(m, proj, { x0: 4, y0: 4, x1: 6, y1: 6 })).toEqual([q]);
     expect(polygonsInRect(m, proj, { x0: 0, y0: 0, x1: 4, y1: 4 })).toEqual([]);
+  });
+});
+
+describe('constrainToAxis', () => {
+  const start = { x: 100, y: 50 };
+
+  it('keeps a mostly horizontal drag level and a mostly vertical one upright', () => {
+    expect(constrainToAxis(start, { x: 180, y: 70 })).toEqual({ x: 180, y: 50 });
+    expect(constrainToAxis(start, { x: 90, y: -40 })).toEqual({ x: 100, y: -40 });
+    expect(constrainToAxis(start, { x: 20, y: 52 })).toEqual({ x: 20, y: 50 }); // to the left works too
+  });
+
+  it('goes horizontal on a perfect diagonal, and leaves a drag with no movement where it is', () => {
+    expect(constrainToAxis(start, { x: 130, y: 80 })).toEqual({ x: 130, y: 50 });
+    expect(constrainToAxis(start, start)).toEqual(start);
   });
 });
