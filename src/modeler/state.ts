@@ -26,6 +26,8 @@ export class ModelerState {
   createOp: PrimitiveName | null = null;
   readonly layers: Mesh[];
   activeLayer = 0;
+  /** Copied polygons, with their own points and surfaces. Survives layer changes, so you can paste into another layer. */
+  clipboard: Mesh | null = null;
   /** Project-wide: one palette shared by every tool, and the images surfaces refer to by name. Replace, don't mutate. */
   palette: Palette = defaultPalette();
   images: IndexedImage[] = defaultImages();
@@ -112,6 +114,11 @@ export class ModelerState {
   setCreateOp(op: PrimitiveName | null): void {
     if (op === this.createOp) return;
     this.createOp = op;
+    this.changed();
+  }
+
+  setClipboard(clip: Mesh | null): void {
+    this.clipboard = clip;
     this.changed();
   }
 

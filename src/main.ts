@@ -4,7 +4,17 @@ import {
   box,
   LAYER_COUNT,
   ModelerState,
+  copySelection,
+  cutSelection,
+  deleteSelection,
+  flipSelection,
+  makePolygon,
+  mergeCoincidentPoints,
   MoveTool,
+  pasteClipboard,
+  triangulateSelection,
+  weldSelection,
+  type EditResult,
   PRIMITIVE_NAMES,
   PRIMITIVES,
   RotateTool,
@@ -98,6 +108,13 @@ app.innerHTML = `
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
       <button data-action="none">None</button>
+      <div class="section">Edit</div>
+      <button data-edit="delete" title="Delete the selected points or polygons (Delete)">Delete</button>
+      <button data-edit="merge" title="Merge points that sit on top of each other: the selected ones, or all">Merge Points</button>
+      <button data-edit="weld" title="Weld the selected points into one, at their average">Weld</button>
+      <button data-edit="flip" title="Turn the selected polygons (or all) inside out">Flip</button>
+      <button data-edit="make" title="Make a polygon from the selected points, joined in the order you selected them (Shift-click)">Make Polygon</button>
+      <button data-edit="triple" title="Split the selected polygons (or all) into triangles">Triple</button>
     </div>
     <div class="viewports">
       ${VIEWS.map(([, n]) => `<div class="viewport"><canvas></canvas><span class="label">${n}</span></div>`).join('')}
@@ -113,6 +130,11 @@ app.innerHTML = `
       ${VIEW_MODES.map(([m, label]) => `<button data-view="${m}">${label}</button>`).join('')}
     </span>
     <span class="spacer"></span>
+    <span class="group">
+      <button data-edit="cut" title="Cut the selected polygons (Ctrl+X)">Cut</button>
+      <button data-edit="copy" title="Copy the selected polygons (Ctrl+C)">Copy</button>
+      <button data-edit="paste" title="Paste where they were copied from (Ctrl+V)">Paste</button>
+    </span>
     <button id="redo">Redo</button>
     <button id="undo">Undo</button>
   </div>
@@ -200,6 +222,25 @@ window.addEventListener('beforeunload', (e) => {
 
 state.subscribe(() => renderSettings.refresh()); // the Retro panel shows the palette, which can change
 
+const EDITS: Record<string, (s: typeof state) => EditResult> = {
+  delete: (s) => deleteSelection(s),
+  merge: (s) => mergeCoincidentPoints(s),
+  weld: weldSelection,
+  flip: flipSelection,
+  make: makePolygon,
+  triple: triangulateSelection,
+  cut: cutSelection,
+  copy: copySelection,
+  paste: pasteClipboard,
+};
+/** Run an editing command and say what it did, or why it could not. */
+const runEdit = (name: string) => {
+  const result = EDITS[name]!(state);
+  notify(result.message, !result.ok);
+};
+const pasteButton = app.querySelector<HTMLButtonElement>('[data-edit="paste"]')!;
+app.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((b) => b.addEventListener('click', () => runEdit(b.dataset.edit!)));
+
 const ACTIONS: Record<string, () => void> = {
   new: () => files.newProject(),
   load: () => files.load(),
@@ -230,6 +271,7 @@ state.subscribe(() => {
     b.classList.toggle('active', i === state.activeLayer);
     b.classList.toggle('filled', state.layers[i]!.points.length > 0);
   });
+  pasteButton.disabled = !state.clipboard;
   undoButton.disabled = !history.canUndo;
   redoButton.disabled = !history.canRedo;
   undoButton.title = history.undoLabel ?? '';
@@ -261,6 +303,18 @@ window.addEventListener('keydown', (e) => {
   } else if (mod && e.key.toLowerCase() === 'i') {
     e.preventDefault();
     state.invertSelection();
+  } else if (mod && e.key.toLowerCase() === 'c') {
+    e.preventDefault();
+    runEdit('copy');
+  } else if (mod && e.key.toLowerCase() === 'x') {
+    e.preventDefault();
+    runEdit('cut');
+  } else if (mod && e.key.toLowerCase() === 'v') {
+    e.preventDefault();
+    runEdit('paste');
+  } else if (!mod && (e.key === 'Delete' || e.key === 'Backspace')) {
+    e.preventDefault();
+    runEdit('delete');
   } else if (e.key === ' ') {
     e.preventDefault();
     state.clearSelection();
