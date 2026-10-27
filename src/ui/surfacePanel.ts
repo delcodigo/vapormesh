@@ -79,7 +79,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
   const showFields = () => {
     const s = current();
     if (!s) return;
-    which.innerHTML = state.mesh.surfaces.map((x, i) => `<option value="${i}">${x.name}</option>`).join('');
+    // Names come from project files, so never put them into HTML.
+    which.replaceChildren(...state.mesh.surfaces.map((x, i) => new Option(x.name, String(i))));
     which.value = String(index);
     color.value = hex(s.color);
     for (const [k] of SLIDERS) {
@@ -94,9 +95,10 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     // an image the surface names but the project no longer has stays listed, so the choice isn't silently lost
     const names = state.images.map((i) => i.name);
     if (s.texture && !names.includes(s.texture)) names.push(s.texture);
-    texture.innerHTML =
-      '<option value="">(none)</option>' +
-      names.map((n) => `<option value="${n}">${state.images.some((i) => i.name === n) ? n : `${n} (missing)`}</option>`).join('');
+    texture.replaceChildren(
+      new Option('(none)', ''),
+      ...names.map((n) => new Option(state.images.some((i) => i.name === n) ? n : `${n} (missing)`, n)),
+    );
     texture.value = s.texture ?? '';
     wrap.value = s.wrap;
   };

@@ -5,3 +5,4 @@ export * from './scene';
 export * from './palette';
 export * from './image';
 export * from './uv';
+export * from './quantize';

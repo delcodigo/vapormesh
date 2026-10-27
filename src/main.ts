@@ -16,6 +16,7 @@ import {
 } from '@/modeler';
 import {
   createFileActions,
+  createImagesPanel,
   type EditorBridge,
   createNumericPanel,
   createPrimitivePanel,
@@ -88,6 +89,7 @@ app.innerHTML = `
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
       <div class="section">Surface</div>
       <button data-action="surface">Surfaces</button>
+      <button data-action="images">Images</button>
       <div class="section">Select</div>
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
@@ -150,8 +152,10 @@ layerButtons.forEach((b, i) => b.addEventListener('click', () => state.setActive
 
 const workspace = app.querySelector<HTMLElement>('.workspace')!;
 const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surface"]')!;
+const imagesButton = app.querySelector<HTMLButtonElement>('[data-action="images"]')!;
 const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
 const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
+const images = createImagesPanel(state, workspace, () => imagesButton.classList.toggle('active', images.isOpen()));
 const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
 const message = app.querySelector<HTMLElement>('.message')!;
@@ -192,6 +196,7 @@ const ACTIONS: Record<string, () => void> = {
   save: () => files.save(),
   numeric: () => numeric.toggle(),
   surface: () => surfaces.toggle(),
+  images: () => images.toggle(),
   render: () => renderSettings.toggle(),
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
