@@ -1,4 +1,4 @@
-import { defaultSurface, Mesh, type Vec3 } from '@/core';
+import { assignAutoUvs, defaultSurface, Mesh, type Vec3 } from '@/core';
 
 export function box(w = 1, h = 1, d = 1): Mesh {
   const m = new Mesh();
@@ -39,6 +39,7 @@ function place(m: Mesh, axis: Axis, local: Vec3, world: Vec3, center: Vec3): Mes
     const q = toAxis([p[0] * local[0], p[1] * local[1], p[2] * local[2]], axis);
     return [q[0] * world[0] + center[0], q[1] * world[1] + center[1], q[2] * world[2] + center[2]];
   });
+  assignAutoUvs(m);
   return m;
 }
 
@@ -94,6 +95,7 @@ export function createBox({ size, center, segments }: BoxParams): Mesh {
       }
     }
   }
+  assignAutoUvs(m);
   return m;
 }
 

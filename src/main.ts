@@ -1,4 +1,5 @@
 import './style.css';
+import { assignAutoUvs } from '@/core';
 import {
   box,
   LAYER_COUNT,
@@ -57,7 +58,9 @@ const TOOLS: [ToolName, string][] = [
   ['size', 'Size'],
 ];
 
-const state = new ModelerState(box(1, 1, 1));
+const demoBox = box(1, 1, 1);
+assignAutoUvs(demoBox);
+const state = new ModelerState(demoBox);
 const display = defaultDisplay();
 // ?view=shaded opens straight into a shaded Perspective view
 const requested = new URLSearchParams(location.search).get('view');
@@ -149,7 +152,7 @@ const workspace = app.querySelector<HTMLElement>('.workspace')!;
 const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surface"]')!;
 const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
 const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
-const renderSettings = createRenderPanel(display.retro, workspace, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
+const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
 const message = app.querySelector<HTMLElement>('.message')!;
 let messageTimer = 0;
@@ -258,7 +261,7 @@ function boxSelect(vp: Viewport, i: DragInfo): void {
   state.applySelection(ids, i.ctrl ? 'remove' : i.shift ? 'add' : 'replace');
 }
 
-const viewports = [...document.querySelectorAll('canvas')].map((c, i) => {
+const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport canvas')].map((c, i) => {
   const vp = new Viewport(c, VIEWS[i]![0]);
   const view = new MeshView(state);
   vp.scene.add(view.group);
@@ -297,6 +300,7 @@ state.changed();
 function frame() {
   for (const { vp, view, shaded } of viewports) {
     view.update();
+    vp.palette = state.palette;
     if (shaded && display.mode !== 'wire') shaded.update();
     vp.resize();
     vp.render();

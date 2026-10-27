@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Vec3 } from '@/core';
+import { defaultPalette, type Palette, type Vec3 } from '@/core';
 import { THEME } from '@/theme';
 import type { Projector, ScreenPoint } from './pick';
 import type { DisplaySettings } from './retro';
@@ -48,6 +48,8 @@ export class Viewport implements Projector {
   display?: DisplaySettings;
   /** Geometry drawn through the retro pass when the display mode is shaded. */
   readonly shadedScene = new THREE.Scene();
+  /** The project palette the shaded view maps to. Set from outside each frame. */
+  palette: Palette = defaultPalette();
   private retroPass: RetroPass | null = null;
   /** Called on a left click that did not drag; coordinates are CSS pixels within the canvas. */
   onClick?: (x: number, y: number, e: PointerEvent) => void;
@@ -109,7 +111,7 @@ export class Viewport implements Projector {
     }
     this.retroPass ??= new RetroPass();
     const aspect = this.width / Math.max(this.height, 1) || 1;
-    this.retroPass.render(this.renderer, this.shadedScene, this.camera, this.display!.retro, aspect);
+    this.retroPass.render(this.renderer, this.shadedScene, this.camera, this.display!.retro, aspect, this.palette);
     if (mode === 'shaded-wire') {
       // Editing overlay at full resolution on top of the chunky image.
       this.renderer.autoClear = false;

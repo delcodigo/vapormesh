@@ -6,6 +6,22 @@ import { buildSurfaceBuffers } from './shading';
 const normalsOf = (b: { normals: number[] }): Vec3[] =>
   Array.from({ length: b.normals.length / 3 }, (_, i) => [b.normals[i * 3]!, b.normals[i * 3 + 1]!, b.normals[i * 3 + 2]!]);
 
+describe('buildSurfaceBuffers UVs', () => {
+  it('emits two UV floats per vertex, taken from the polygon corners that make each triangle', () => {
+    const m = box();
+    m.polygons[0]!.uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const b = buildSurfaceBuffers(m, 0);
+    expect(b.uvs).toHaveLength((b.positions.length / 3) * 2);
+    // first quad -> triangles (0,1,2) and (0,2,3)
+    expect(b.uvs.slice(0, 12)).toEqual([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);
+  });
+
+  it('uses (0, 0) for polygons without UVs', () => {
+    const b = buildSurfaceBuffers(box(), 0);
+    expect(b.uvs.every((v) => v === 0)).toBe(true);
+  });
+});
+
 describe('buildSurfaceBuffers', () => {
   it('triangulates n-gons as fans and gives flat surfaces one normal per face', () => {
     const m = box();

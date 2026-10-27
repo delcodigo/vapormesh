@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createImage, defaultImages, defaultPalette, Mesh } from '@/core';
 import { createBall, createBox, ModelerState, LAYER_COUNT } from '@/modeler';
 import { defaultDisplay } from '@/render/retro';
 import { decodeProject, encodeProject, FORMAT_VERSION, ProjectFormatError, type ProjectData } from './project';
@@ -9,9 +10,16 @@ function sample(): ProjectData {
   const box = createBox({ size: [1, 2, 3], center: [0, 0, 0], segments: [2, 1, 1] });
   box.surfaces.push({ ...box.surfaces[0]!, name: 'Glass', doubleSided: true });
   box.polygons[1]!.surface = 1;
+  box.surfaces[1]!.texture = 'Hero';
+  box.surfaces[1]!.wrap = 'clamp';
+  const palette = defaultPalette();
+  palette[5] = 200;
+  const hero = createImage('Hero', 32, 16, 3);
+  hero.pixels[17] = 99;
+  const images = [...defaultImages(), hero];
   const display = defaultDisplay();
   display.mode = 'shaded-wire';
-  display.retro = { resolutionHeight: 180, colorLevels: 24, dither: 0.5 };
+  display.retro = { resolutionHeight: 180, colorLevels: 24, dither: 0.5, usePalette: false };
   const editor = {
     selectMode: 'polygons' as const,
     customPivot: [1, 2, 3] as [number, number, number],
@@ -20,7 +28,7 @@ function sample(): ProjectData {
       top: { target: [3, 0, 4] as [number, number, number], orthoSize: 12.5 },
     },
   };
-  return { layers: [box, ball], activeLayer: 1, display, editor };
+  return { layers: [box, ball], activeLayer: 1, display, editor, palette, images };
 }
 
 /** Rewrite the 4 header words so tampering tests don't trip the size check first. */
@@ -37,6 +45,8 @@ describe('project file', () => {
     expect(back.activeLayer).toBe(1);
     expect(back.display).toEqual(original.display);
     expect(back.editor).toEqual(original.editor);
+    expect(back.palette).toEqual(original.palette);
+    expect(back.images).toEqual(original.images);
     expect(back.layers).toHaveLength(2);
     back.layers.forEach((m, i) => {
       expect(m.points).toEqual(original.layers[i]!.points); // float64: bit-exact
@@ -53,7 +63,7 @@ describe('project file', () => {
   });
 
   it('loads an empty project', () => {
-    const back = decodeProject(encodeProject({ layers: [], activeLayer: 0, display: defaultDisplay() }));
+    const back = decodeProject(encodeProject({ layers: [], activeLayer: 0, display: defaultDisplay(), palette: defaultPalette(), images: [] }));
     expect(back.layers).toEqual([]);
   });
 
@@ -99,19 +109,115 @@ describe('project file', () => {
   it('fills in defaults for surface and display fields it does not know, and clamps wild values', () => {
     const data = sample();
     data.layers[0]!.surfaces[0] = { name: 'Odd' } as never;
-    data.display.retro = { resolutionHeight: 99999, colorLevels: -3, dither: 7 };
+    data.display.retro = { resolutionHeight: 99999, colorLevels: -3, dither: 7, usePalette: false };
     data.activeLayer = 400;
     const back = decodeProject(encodeProject(data));
     expect(back.layers[0]!.surfaces[0]).toMatchObject({ name: 'Odd', diffuse: 1, smoothing: false });
-    expect(back.display.retro).toEqual({ resolutionHeight: 2160, colorLevels: 2, dither: 1 });
+    expect(back.display.retro).toEqual({ resolutionHeight: 2160, colorLevels: 2, dither: 1, usePalette: false });
     expect(back.activeLayer).toBe(LAYER_COUNT - 1);
   });
 
   it('is much smaller than the same model as JSON', () => {
     const ball = createBall({ radius: [1, 1, 1], center: [0, 0, 0], sides: 128, segments: 64, axis: 'y' });
     const json = JSON.stringify({ points: ball.points, polygons: ball.polygons, surfaces: ball.surfaces }).length;
-    const binary = encodeProject({ layers: [ball], activeLayer: 0, display: defaultDisplay() }).byteLength;
+    const binary = encodeProject({ layers: [ball], activeLayer: 0, display: defaultDisplay(), palette: defaultPalette(), images: [] }).byteLength;
     expect(binary).toBeLessThan(json * 0.55);
+  });
+});
+
+/** Build a version 1 file the way the first release wrote it: layers only, no UVs, palette or images. */
+function encodeV1(layers: Mesh[]): ArrayBuffer {
+  const headers = layers.map((m) => ({ surfaces: m.surfaces, points: m.points.length, polygons: m.polygons.length, indices: m.polygons.reduce((n, p) => n + p.points.length, 0) }));
+  const json = new TextEncoder().encode(JSON.stringify({ app: 'VaporMesh', activeLayer: 0, layers: headers }));
+  const bin = headers.reduce((n, h) => n + h.points * 24 + h.polygons * 8 + h.indices * 4, 0);
+  const out = new ArrayBuffer(16 + json.length + bin);
+  const v = new DataView(out);
+  'VMSH'.split('').forEach((c, i) => v.setUint8(i, c.charCodeAt(0)));
+  v.setUint32(4, 1, true);
+  v.setUint32(8, json.length, true);
+  v.setUint32(12, bin, true);
+  new Uint8Array(out, 16, json.length).set(json);
+  let o = 16 + json.length;
+  for (const m of layers) {
+    for (const p of m.points) for (const c of p) { v.setFloat64(o, c, true); o += 8; }
+    for (const poly of m.polygons) { v.setUint32(o, poly.surface, true); o += 4; }
+    for (const poly of m.polygons) { v.setUint32(o, poly.points.length, true); o += 4; }
+    for (const poly of m.polygons) for (const i of poly.points) { v.setUint32(o, i, true); o += 4; }
+  }
+  return out;
+}
+
+describe('format version 2', () => {
+  it('writes version 2 and keeps UVs per corner, including polygons that have none', () => {
+    const data = sample();
+    delete data.layers[0]!.polygons[2]!.uvs; // among polygons that have UVs
+    const bytes = encodeProject(data);
+    expect(new DataView(bytes).getUint32(4, true)).toBe(2);
+    const back = decodeProject(bytes);
+    expect(back.layers[1]!.polygons.every((p) => p.uvs?.length === p.points.length)).toBe(true);
+    expect(back.layers[0]!.polygons[0]!.uvs).toEqual(data.layers[0]!.polygons[0]!.uvs);
+    expect(back.layers[0]!.polygons[2]!.uvs).toEqual(data.layers[0]!.polygons[2]!.points.map(() => [0, 0]));
+  });
+
+  it('writes no UV data for a layer that has none, so old-style meshes stay compact', () => {
+    const plain = createBox({ size: [1, 1, 1], center: [0, 0, 0], segments: [1, 1, 1] });
+    plain.polygons.forEach((p) => delete p.uvs);
+    const withUvs = createBox({ size: [1, 1, 1], center: [0, 0, 0], segments: [1, 1, 1] });
+    // length of the binary chunk (header word 3); the JSON metadata differs by a character, so don't compare whole files
+    const size = (m: Mesh) =>
+      new DataView(encodeProject({ layers: [m], activeLayer: 0, display: defaultDisplay(), palette: defaultPalette(), images: [] })).getUint32(12, true);
+    expect(size(withUvs) - size(plain)).toBe(24 * 16); // 24 corners x (u, v) x 8 bytes
+    expect(decodeProject(encodeProject({ layers: [plain], activeLayer: 0, display: defaultDisplay(), palette: defaultPalette(), images: [] })).layers[0]!.polygons[0]!.uvs).toBeUndefined();
+  });
+
+  it('still loads a version 1 file, adding the default palette and starter images', () => {
+    const box = createBox({ size: [1, 2, 3], center: [0, 0, 0], segments: [1, 1, 1] });
+    box.polygons.forEach((p) => delete p.uvs);
+    const back = decodeProject(encodeV1([box]));
+    expect(back.layers[0]!.points).toEqual(box.points);
+    expect(back.layers[0]!.surfaces[0]).toMatchObject({ texture: null, wrap: 'repeat' });
+    expect(back.palette).toEqual(defaultPalette());
+    expect(back.images.map((i) => i.name)).toEqual(['Checker', 'UV Grid']);
+  });
+
+  it('keeps a project with no images, which is different from an old file with none', () => {
+    const data = { ...sample(), images: [] };
+    expect(decodeProject(encodeProject(data)).images).toEqual([]);
+  });
+
+  it('rejects images with bad sizes, duplicate names, and sizes that do not match the data', () => {
+    const tweak = (mutate: (m: { images: unknown }) => void) => {
+      const bytes = new Uint8Array(encodeProject(sample()));
+      const jsonLength = new DataView(bytes.buffer).getUint32(8, true);
+      const manifest = JSON.parse(new TextDecoder().decode(bytes.slice(16, 16 + jsonLength)));
+      mutate(manifest);
+      const json = new TextEncoder().encode(JSON.stringify(manifest));
+      const binary = bytes.slice(16 + jsonLength);
+      const out = new Uint8Array(16 + json.length + binary.length);
+      out.set(bytes.slice(0, 16));
+      new DataView(out.buffer).setUint32(8, json.length, true);
+      out.set(json, 16);
+      out.set(binary, 16 + json.length);
+      return out.buffer;
+    };
+    expect(() => decodeProject(tweak((m) => ((m.images as { width: number }[])[0]!.width = 100)))).toThrow(/invalid size/);
+    expect(() => decodeProject(tweak((m) => ((m.images as { name: string }[])[1]!.name = 'Checker')))).toThrow(/Two images/);
+    expect(() => decodeProject(tweak((m) => ((m.images as { height: number }[])[0]!.height = 128)))).toThrow(/does not match/);
+    expect(() => decodeProject(tweak((m) => (m.images = 'nope')))).toThrow(/image list/);
+  });
+
+  it('rejects a UV that is not a number', () => {
+    const data = sample();
+    data.layers[1]!.polygons[0]!.uvs![0] = [NaN, 0];
+    expect(() => decodeProject(encodeProject(data))).toThrow(/UV/);
+  });
+
+  it('reads surface textures leniently', () => {
+    const data = sample();
+    data.layers[0]!.surfaces[0] = { name: 'X', texture: 42, wrap: 'sideways' } as never;
+    const s = decodeProject(encodeProject(data)).layers[0]!.surfaces[0]!;
+    expect(s.texture).toBeNull();
+    expect(s.wrap).toBe('repeat');
   });
 });
 

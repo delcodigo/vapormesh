@@ -48,7 +48,14 @@ export function createFileActions(
   };
 
   const save = () => {
-    const data = encodeProject({ layers: state.layers, activeLayer: state.activeLayer, display, editor: editor.capture() });
+    const data = encodeProject({
+      layers: state.layers,
+      activeLayer: state.activeLayer,
+      display,
+      palette: state.palette,
+      images: state.images,
+      editor: editor.capture(),
+    });
     const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
     const link = document.createElement('a');
     link.href = url;
@@ -69,7 +76,7 @@ export function createFileActions(
     if (!file) return;
     try {
       const project = decodeProject(await file.arrayBuffer());
-      state.loadLayers(project.layers, project.activeLayer);
+      state.loadLayers(project.layers, project.activeLayer, { palette: project.palette, images: project.images });
       display.mode = project.display.mode;
       Object.assign(display.retro, project.display.retro);
       if (project.editor) editor.apply(project.editor);

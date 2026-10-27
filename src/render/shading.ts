@@ -1,21 +1,11 @@
-import type { Mesh, Vec3 } from '@/core';
+import { faceNormal, type Mesh, type Vec3 } from '@/core';
 
 export interface SurfaceBuffers {
   /** Triangle-list positions, 3 floats per vertex. */
   positions: number[];
   normals: number[];
-}
-
-/** Newell normal of a polygon: points along the outward direction for counter-clockwise winding, length ∝ area. */
-export function faceNormal(pts: Vec3[]): Vec3 {
-  const n: Vec3 = [0, 0, 0];
-  pts.forEach((p, i) => {
-    const q = pts[(i + 1) % pts.length]!;
-    n[0] += (p[1] - q[1]) * (p[2] + q[2]);
-    n[1] += (p[2] - q[2]) * (p[0] + q[0]);
-    n[2] += (p[0] - q[0]) * (p[1] + q[1]);
-  });
-  return n;
+  /** Two floats per vertex; (0, 0) for polygons without UVs. */
+  uvs: number[];
 }
 
 const length = (v: Vec3) => Math.hypot(v[0], v[1], v[2]);
@@ -32,7 +22,7 @@ const unit = (v: Vec3): Vec3 => {
  * stay sharp while a sphere reads as round. Polygons with no area are skipped.
  */
 export function buildSurfaceBuffers(mesh: Mesh, surfaceIndex: number): SurfaceBuffers {
-  const out: SurfaceBuffers = { positions: [], normals: [] };
+  const out: SurfaceBuffers = { positions: [], normals: [], uvs: [] };
   const surface = mesh.surfaces[surfaceIndex];
   if (!surface) return out;
 
@@ -71,6 +61,7 @@ export function buildSurfaceBuffers(mesh: Mesh, surfaceIndex: number): SurfaceBu
       for (const c of [0, i, i + 1]) {
         out.positions.push(...mesh.points[poly.points[c]!]!);
         out.normals.push(...corners[c]!);
+        out.uvs.push(...(poly.uvs?.[c] ?? [0, 0]));
       }
     }
   });

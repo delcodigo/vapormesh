@@ -15,3 +15,15 @@ export function rotateAround(p: Vec3, pivot: Vec3, axis: Vec3, angle: number): V
     pivot[2] + v[2] * cos + cross[2] * sin + k[2] * dot * (1 - cos),
   ];
 }
+
+/** Newell normal of a polygon: points along the outward direction for counter-clockwise winding, length ∝ area. */
+export function faceNormal(pts: Vec3[]): Vec3 {
+  const n: Vec3 = [0, 0, 0];
+  pts.forEach((p, i) => {
+    const q = pts[(i + 1) % pts.length]!;
+    n[0] += (p[1] - q[1]) * (p[2] + q[2]);
+    n[1] += (p[2] - q[2]) * (p[0] + q[0]);
+    n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+  });
+  return n;
+}

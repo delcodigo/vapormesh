@@ -4,6 +4,7 @@ import {
   AddSurfaceCommand,
   AssignSurfaceCommand,
   cloneSurface,
+  applyAutoUv,
   EditSurfaceCommand,
   type ModelerState,
 } from '@/modeler';
@@ -44,6 +45,11 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
       <label class="choice"><input type="checkbox" data-f="doubleSided"> Double sided</label>
     </div>
     <div class="numeric-group">
+      <div class="numeric-heading"><span>Texture</span></div>
+      <div class="numeric-row"><select data-f="texture"></select><select data-f="wrap" title="What UVs outside 0..1 do"><option value="repeat">Repeat</option><option value="clamp">Clamp</option></select></div>
+      <div class="numeric-actions" style="margin-top:4px"><button data-act="autoUv" title="Box-project UVs for the selected polygons (or the whole layer) at a fixed texel density">Auto UV</button></div>
+    </div>
+    <div class="numeric-group">
       <div class="numeric-heading"><span>New surface</span></div>
       <div class="numeric-row"><input type="text" data-f="newName" placeholder="Name" spellcheck="false"><button data-act="new">New</button></div>
     </div>
@@ -56,6 +62,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
   const color = field<HTMLInputElement>('color');
   const smoothing = field<HTMLInputElement>('smoothing');
   const doubleSided = field<HTMLInputElement>('doubleSided');
+  const texture = field<HTMLSelectElement>('texture');
+  const wrap = field<HTMLSelectElement>('wrap');
   const angle = field<HTMLInputElement>('smoothingAngle');
   const newName = field<HTMLInputElement>('newName');
   const sliders = Object.fromEntries(SLIDERS.map(([k]) => [k, field<HTMLInputElement>(k)])) as Record<SliderKey, HTMLInputElement>;
@@ -83,6 +91,14 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     out('smoothingAngle').textContent = `${s.smoothingAngle}°`;
     angle.disabled = !s.smoothing;
     doubleSided.checked = s.doubleSided;
+    // an image the surface names but the project no longer has stays listed, so the choice isn't silently lost
+    const names = state.images.map((i) => i.name);
+    if (s.texture && !names.includes(s.texture)) names.push(s.texture);
+    texture.innerHTML =
+      '<option value="">(none)</option>' +
+      names.map((n) => `<option value="${n}">${state.images.some((i) => i.name === n) ? n : `${n} (missing)`}</option>`).join('');
+    texture.value = s.texture ?? '';
+    wrap.value = s.wrap;
   };
 
   /** Re-read the panel's selected surface from the model (after undo, selection or layer changes). */
@@ -109,6 +125,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     smoothing: smoothing.checked,
     smoothingAngle: Math.min(Math.max(Number(angle.value) || 0, 0), 180),
     doubleSided: doubleSided.checked,
+    texture: texture.value || null,
+    wrap: wrap.value === 'clamp' ? 'clamp' : 'repeat',
   });
 
   const apply = (fn: () => void) => {
@@ -151,6 +169,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
 
   const actions: Record<string, () => void> = {
     close: () => toggle(),
+    autoUv: () => apply(() => applyAutoUv(state)),
     assign: () => {
       const ids = state.selectedPolygonIds().filter((p) => state.mesh.polygons[p]!.surface !== index);
       if (ids.length) apply(() => state.execute(new AssignSurfaceCommand(state.mesh, ids, index)));

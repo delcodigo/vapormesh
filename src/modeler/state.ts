@@ -1,4 +1,4 @@
-import { Mesh, type Vec3 } from '@/core';
+import { defaultImages, defaultPalette, Mesh, type IndexedImage, type Palette, type Vec3 } from '@/core';
 import { History, type Command } from './history';
 import type { PrimitiveName } from './create';
 
@@ -26,6 +26,9 @@ export class ModelerState {
   createOp: PrimitiveName | null = null;
   readonly layers: Mesh[];
   activeLayer = 0;
+  /** Project-wide: one palette shared by every tool, and the images surfaces refer to by name. Replace, don't mutate. */
+  palette: Palette = defaultPalette();
+  images: IndexedImage[] = defaultImages();
   readonly selectedPoints = new Set<number>();
   readonly selectedPolygons = new Set<number>();
   /** Bumped on every change so views know when to rebuild. */
@@ -49,7 +52,13 @@ export class ModelerState {
   }
 
   /** Replace the whole model (e.g. when opening a file). Missing layers become empty; history is cleared. */
-  loadLayers(layers: Mesh[], activeLayer: number): void {
+  loadLayers(
+    layers: Mesh[],
+    activeLayer: number,
+    assets: { palette: Palette; images: IndexedImage[] } = { palette: defaultPalette(), images: defaultImages() },
+  ): void {
+    this.palette = assets.palette;
+    this.images = assets.images;
     for (let i = 0; i < LAYER_COUNT; i++) this.layers[i] = layers[i] ?? new Mesh();
     this.activeLayer = Math.min(Math.max(activeLayer, 0), LAYER_COUNT - 1);
     this.selectedPoints.clear();

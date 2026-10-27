@@ -12,6 +12,10 @@ export interface Surface {
   /** Neighbouring polygons within this angle (degrees) share a smoothed normal; sharper edges stay hard. */
   smoothingAngle: number;
   doubleSided: boolean;
+  /** Name of an image in the project, or null for a plain colour. */
+  texture: string | null;
+  /** What UVs outside 0..1 do: tile (walls) or hold the edge pixel (atlas regions). */
+  wrap: 'repeat' | 'clamp';
 }
 
 export function defaultSurface(name = 'Default'): Surface {
@@ -25,6 +29,8 @@ export function defaultSurface(name = 'Default'): Surface {
     smoothing: false,
     smoothingAngle: 89,
     doubleSided: false,
+    texture: null,
+    wrap: 'repeat',
   };
 }
 
@@ -32,7 +38,14 @@ export function defaultSurface(name = 'Default'): Surface {
 export interface Polygon {
   points: number[];
   surface: number; // index into Mesh.surfaces
+  /**
+   * Texture coordinates, one per corner and parallel to `points`. Per corner (not per point) so a face can
+   * sit anywhere in a shared atlas. Origin top-left, v grows downward, like the image itself. Optional.
+   */
+  uvs?: UV[];
 }
+
+export type UV = [number, number];
 
 /** Array lengths of a mesh at a moment in time, used to undo an `append`. */
 export interface MeshSize {
@@ -71,7 +84,11 @@ export class Mesh {
     const base = this.points.length;
     for (const p of other.points) this.points.push([...p]);
     for (const poly of other.polygons) {
-      this.polygons.push({ points: poly.points.map((i) => i + base), surface: surfaceMap[poly.surface]! });
+      this.polygons.push({
+        points: poly.points.map((i) => i + base),
+        surface: surfaceMap[poly.surface]!,
+        ...(poly.uvs && { uvs: poly.uvs.map((uv): UV => [...uv]) }),
+      });
     }
     return before;
   }
