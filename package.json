@@ -2,6 +2,7 @@
   "name": "vapormesh",
   "version": "0.0.1",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "A web-based 3D modeler and layout tool in the spirit of mid-90s software, with a vaporwave look, in TypeScript",
   "scripts": {

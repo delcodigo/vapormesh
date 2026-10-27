@@ -19,7 +19,26 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 | Look | A retro Shaded view: low resolution, nearest-neighbour upscaling, ordered dither, mapped to the project palette |
 | Projects | Save and load `.vmesh` files, with undo for everything ([format](docs/FORMAT.md)) |
 
-Not yet: the deformers (stretch, bend, twist, taper, magnet), the texture painter, glTF export, Layout and cutscenes, the animator, the tracker.
+Not yet: array/clone, lathe and smooth shift (the rest of Multiply), the texture painter, glTF export, Layout and cutscenes,
+the animator, the tracker.
+
+## Keys
+
+| Key | |
+|-----|---|
+| `Q` `M` `R` `S` | Select, Move, Rotate, Size |
+| `E` `K` | Extrude, Knife (hold `Shift` while dragging the knife for a horizontal or vertical cut) |
+| `1` `2` `P` | Point mode, Polygon mode, switch between them |
+| `N` `I` `U` | Numeric panel, Position panel, UV editor |
+| `Space` | Clear the selection |
+| `Delete` | Delete the selection |
+| `Ctrl` + `A` `I` | Select all, invert the selection |
+| `Ctrl` + `C` `X` `V` | Copy, cut, paste |
+| `Ctrl` + `Z` `Y` | Undo, redo (`Ctrl+Shift+Z` also redoes) |
+| `Ctrl` + `S` `O` | Save, open |
+
+Moves, Drag, Magnet, Extrude and Size snap to the grid set by the **Snap** menu (0.1 by default; Off for free dragging).
+In a view, the middle or right button, or `Shift` with the left, pans; the wheel zooms; the left button orbits the Perspective view.
 
 ## Running it
 
@@ -46,3 +65,7 @@ It needs a browser with WebGL 2.
 | `docs/` | `SPEC.md` (what this is and the order it is built in) and `FORMAT.md` (the file format) |
 
 `design/` holds reference screenshots and is deliberately not committed.
+
+## Licence
+
+[MIT](LICENSE).
