@@ -86,6 +86,8 @@ const VIEW_MODES: [ViewMode, string][] = [
   ['shaded', 'Shaded'],
   ['shaded-wire', 'Shaded+Wire'],
 ];
+/** Single-key tool shortcuts. Q is selection: no tool, so drags draw a selection box. */
+const TOOL_KEYS: Record<string, ToolName | null> = { m: 'move', r: 'rotate', s: 'size', q: null };
 const SNAPS: [number, string][] = [
   [0, 'Off'],
   [0.05, '0.05'],
@@ -149,7 +151,8 @@ app.innerHTML = `
       <button data-action="load" title="Ctrl+O">Load</button>
       <button data-action="save" title="Ctrl+S">Save</button>
       <div class="section">Position</div>
-      ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
+      <button data-action="select" title="Selection: drag to select (Q)">Select</button>
+      ${TOOLS.map(([t, label]) => `<button data-tool="${t}" title="${label} (${label === 'Size' ? 'S' : label[0]})">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
       <label class="snap" title="Moves and Drag snap to this grid"><span>Snap</span><select data-snap>${SNAPS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
       <div class="section">Deform</div>
@@ -238,6 +241,7 @@ deformPanel = createDeformPanel(state, app.querySelector('.workspace')!);
 extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
 const lassoButton = app.querySelector<HTMLButtonElement>('[data-action="lasso"]')!;
+const selectButton = app.querySelector<HTMLButtonElement>('[data-action="select"]')!;
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
@@ -335,6 +339,7 @@ const ACTIONS: Record<string, () => void> = {
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
   none: () => state.clearSelection(),
+  select: () => state.setTool(null),
   lasso: () => state.setLasso(!state.lasso),
 };
 const SELECT_ACTIONS: Record<string, () => EditResult> = {
@@ -365,6 +370,7 @@ state.subscribe(() => {
   toolButtons.forEach((b) => b.classList.toggle('active', b.dataset.tool === activeTool));
   numericButton.classList.toggle('active', state.numericOp !== null);
   lassoButton.classList.toggle('active', state.lasso);
+  selectButton.classList.toggle('active', activeTool === null);
   snapSelect.value = String(state.snap);
   primitiveButtons.forEach((b) => b.classList.toggle('active', b.dataset.create === state.createOp));
   layerButtons.forEach((b, i) => {
@@ -419,7 +425,11 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     state.clearSelection();
   } else if (!mod) {
-    if (e.key.toLowerCase() === 'n') numeric.toggle();
+    const key = e.key.toLowerCase();
+    // the transform tools and plain selection, which are used constantly: keys set them rather than toggle, so a
+    // press always leaves you in that tool
+    if (!e.altKey && Object.hasOwn(TOOL_KEYS, key)) state.setTool(TOOL_KEYS[key]!);
+    if (key === 'n') numeric.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }
