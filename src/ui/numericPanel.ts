@@ -1,3 +1,4 @@
+import { makeDraggable } from './draggable';
 import { applyNumeric, type ModelerState, type NumericOp, type ToolName } from '@/modeler';
 import type { Vec3 } from '@/core';
 
@@ -43,6 +44,7 @@ export function createNumericPanel(state: ModelerState, host: HTMLElement): Nume
     </div>
     <div class="numeric-actions"><button data-act="apply">Apply</button><button data-act="reset">Reset</button></div>`;
   host.appendChild(el);
+  makeDraggable(el);
 
   const q = <T extends HTMLElement>(sel: string) => el.querySelector<T>(sel)!;
   const pivotInputs = [...el.querySelectorAll<HTMLInputElement>('[data-field="pivot"]')];

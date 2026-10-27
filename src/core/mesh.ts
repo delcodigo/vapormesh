@@ -9,6 +9,8 @@ export interface Surface {
   specular: number;
   glossiness: number;
   smoothing: boolean; // Gouraud vs flat
+  /** Neighbouring polygons within this angle (degrees) share a smoothed normal; sharper edges stay hard. */
+  smoothingAngle: number;
   doubleSided: boolean;
 }
 
@@ -21,6 +23,7 @@ export function defaultSurface(name = 'Default'): Surface {
     specular: 0,
     glossiness: 0.2,
     smoothing: false,
+    smoothingAngle: 89,
     doubleSided: false,
   };
 }

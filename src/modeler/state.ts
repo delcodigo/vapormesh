@@ -211,6 +211,13 @@ export class ModelerState {
     return this.dragPivot ?? this.pivotFor(this.affectedPoints());
   }
 
+  /** Polygons a surface assignment applies to: selected polygons, or those whose points are all selected. */
+  selectedPolygonIds(): number[] {
+    if (this.mode === 'polygons') return [...this.selectedPolygons];
+    if (this.selectedPoints.size === 0) return [];
+    return this.mesh.polygons.flatMap((poly, i) => (poly.points.every((p) => this.selectedPoints.has(p)) ? [i] : []));
+  }
+
   clearSelection(): void {
     if (this.selection.size === 0) return;
     this.selection.clear();

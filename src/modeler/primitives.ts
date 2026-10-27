@@ -1,4 +1,4 @@
-import { Mesh, type Vec3 } from '@/core';
+import { defaultSurface, Mesh, type Vec3 } from '@/core';
 
 export function box(w = 1, h = 1, d = 1): Mesh {
   const m = new Mesh();
@@ -27,8 +27,14 @@ function toAxis([a, b, c]: Vec3, axis: Axis): Vec3 {
   return [a, b, c];
 }
 
+/** Curved shapes default to a Gouraud surface; the 89 degree threshold keeps cap edges hard. */
+function smoothSurface() {
+  return { ...defaultSurface('Smooth'), smoothing: true };
+}
+
 /** Scale locally, orient to `axis`, scale in world axes, then translate. */
 function place(m: Mesh, axis: Axis, local: Vec3, world: Vec3, center: Vec3): Mesh {
+  m.surfaces = [smoothSurface()];
   m.points = m.points.map((p) => {
     const q = toAxis([p[0] * local[0], p[1] * local[1], p[2] * local[2]], axis);
     return [q[0] * world[0] + center[0], q[1] * world[1] + center[1], q[2] * world[2] + center[2]];

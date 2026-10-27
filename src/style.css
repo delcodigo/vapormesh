@@ -108,3 +108,20 @@ button.active { background: var(--pink); border-color: var(--lo) var(--hi) var(-
 button.layer { width: 14px; height: 14px; padding: 0; border-width: 2px; background: var(--hi); }
 button.layer.filled { background: var(--cyan); }
 button.layer.active { background: var(--pink); }
+.bottombar .group { display: flex; gap: 2px; }
+
+/* surface + render panels: stacked so they don't cover each other or the other dialogs */
+.numeric.surface { right: 248px; }
+.numeric.render { top: auto; bottom: 8px; }
+.numeric .hint { margin-top: 4px; color: var(--lo); font-size: 11px; }
+.slider-row { display: flex; align-items: center; gap: 4px; margin: 2px 0; }
+.slider-row .name { width: 74px; font-weight: bold; }
+.slider-row input[type='range'] { flex: 1; min-width: 0; accent-color: var(--pink); }
+.slider-row input[type='color'] { width: 48px; height: 20px; padding: 0; border: 2px solid var(--lo); background: none; }
+.slider-row output { width: 38px; text-align: right; font-family: 'Courier New', monospace; }
+.numeric input[type='text'] {
+  flex: 1; min-width: 0; box-sizing: border-box; padding: 2px 3px; font: 12px 'Courier New', monospace;
+  background: var(--night); color: var(--mint); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo);
+}
+.numeric input[type='text'].invalid { color: #fff; background: #8a1f4a; }
+.numeric .numeric-row { align-items: center; }

@@ -5,4 +5,5 @@ export * from './moveTool';
 export * from './pivotTools';
 export * from './numeric';
 export * from './create';
+export * from './surfaces';
 export * from './state';

@@ -13,15 +13,18 @@ import {
   type SelectMode,
   type ToolName,
 } from '@/modeler';
-import { createNumericPanel, createPrimitivePanel } from '@/ui';
+import { createNumericPanel, createPrimitivePanel, createRenderPanel, createSurfacePanel } from '@/ui';
 import {
+  defaultDisplay,
   MeshView,
+  ShadedView,
   pickPoint,
   pickPolygon,
   pointsInRect,
   polygonsInRect,
   Viewport,
   type DragInfo,
+  type ViewMode,
   type ViewKind,
 } from '@/render';
 
@@ -36,6 +39,11 @@ const MODES: [SelectMode, string, string][] = [
   ['points', 'Point', '1'],
   ['polygons', 'Polygon', '2'],
 ];
+const VIEW_MODES: [ViewMode, string][] = [
+  ['wire', 'Wire'],
+  ['shaded', 'Shaded'],
+  ['shaded-wire', 'Shaded+Wire'],
+];
 const TOOLS: [ToolName, string][] = [
   ['move', 'Move'],
   ['rotate', 'Rotate'],
@@ -43,6 +51,10 @@ const TOOLS: [ToolName, string][] = [
 ];
 
 const state = new ModelerState(box(1, 1, 1));
+const display = defaultDisplay();
+// ?view=shaded opens straight into a shaded Perspective view
+const requested = new URLSearchParams(location.search).get('view');
+if (VIEW_MODES.some(([m]) => m === requested)) display.mode = requested as ViewMode;
 const dragTools: Record<ToolName, DragTool> = {
   move: new MoveTool(state),
   rotate: new RotateTool(state),
@@ -60,6 +72,8 @@ app.innerHTML = `
       <button data-action="numeric">Numeric</button>
       <div class="section">Create</div>
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
+      <div class="section">Surface</div>
+      <button data-action="surface">Surfaces</button>
       <div class="section">Select</div>
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
@@ -73,6 +87,11 @@ app.innerHTML = `
     ${MODES.map(([m, label]) => `<button data-mode="${m}">${label}</button>`).join('')}
     <span class="readout"></span>
     <span class="spacer"></span>
+    <button data-action="render" title="Retro render settings">Retro…</button>
+    <span class="group" title="How the Perspective view draws">
+      ${VIEW_MODES.map(([m, label]) => `<button data-view="${m}">${label}</button>`).join('')}
+    </span>
+    <span class="spacer"></span>
     <button id="redo">Redo</button>
     <button id="undo">Undo</button>
   </div>`;
@@ -80,6 +99,15 @@ app.innerHTML = `
 const readout = app.querySelector<HTMLElement>('.readout')!;
 const modeButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-mode]')];
 const toolButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-tool]')];
+const viewButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-view]')];
+const showViewMode = () => viewButtons.forEach((b) => b.classList.toggle('active', b.dataset.view === display.mode));
+viewButtons.forEach((b) =>
+  b.addEventListener('click', () => {
+    display.mode = b.dataset.view as ViewMode;
+    showViewMode();
+  }),
+);
+showViewMode();
 const undoButton = app.querySelector<HTMLButtonElement>('#undo')!;
 const redoButton = app.querySelector<HTMLButtonElement>('#redo')!;
 
@@ -104,8 +132,16 @@ primitiveButtons.forEach((b) =>
 const layerButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-layer]')];
 layerButtons.forEach((b, i) => b.addEventListener('click', () => state.setActiveLayer(i)));
 
+const workspace = app.querySelector<HTMLElement>('.workspace')!;
+const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surface"]')!;
+const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
+const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
+const renderSettings = createRenderPanel(display.retro, workspace, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
+
 const ACTIONS: Record<string, () => void> = {
   numeric: () => numeric.toggle(),
+  surface: () => surfaces.toggle(),
+  render: () => renderSettings.toggle(),
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
   none: () => state.clearSelection(),
@@ -172,6 +208,11 @@ const viewports = [...document.querySelectorAll('canvas')].map((c, i) => {
   const vp = new Viewport(c, VIEWS[i]![0]);
   const view = new MeshView(state);
   vp.scene.add(view.group);
+  const shaded = vp.kind === 'perspective' ? new ShadedView(state) : null;
+  if (shaded) {
+    vp.shadedScene.add(shaded.group);
+    vp.display = display;
+  }
   vp.onClick = (x, y, e) => {
     const id =
       state.mode === 'points' ? pickPoint(state.mesh, vp, x, y) : pickPolygon(state.mesh, vp, x, y);
@@ -194,14 +235,15 @@ const viewports = [...document.querySelectorAll('canvas')].map((c, i) => {
     },
     cancel: () => activeDragTool()?.cancel(),
   };
-  return { vp, view };
+  return { vp, view, shaded };
 });
 
 state.changed();
 
 function frame() {
-  for (const { vp, view } of viewports) {
+  for (const { vp, view, shaded } of viewports) {
     view.update();
+    if (shaded && display.mode !== 'wire') shaded.update();
     vp.resize();
     vp.render();
   }

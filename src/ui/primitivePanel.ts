@@ -1,3 +1,4 @@
+import { makeDraggable } from './draggable';
 import {
   createPrimitive,
   defaultValues,
@@ -46,6 +47,7 @@ export function createPrimitivePanel(state: ModelerState, host: HTMLElement): Pr
     </div>
     <div class="numeric-actions"><button data-act="create">Create</button><button data-act="reset">Reset</button></div>`;
   host.appendChild(el);
+  makeDraggable(el);
 
   const fieldsEl = el.querySelector<HTMLElement>('[data-fields]')!;
   const newLayerRadio = el.querySelector<HTMLInputElement>('input[value="layer"]')!;
