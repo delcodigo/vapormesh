@@ -1,8 +1,12 @@
-# WebWave 3D
+# VaporMesh
 
-A TypeScript/WebGL take on mid-90s LightWave 3D (v4/v5 era): a Modeler and a
-Layout in the browser, with a deliberately retro render pipeline (flat/Gouraud
-shading, low-res, affine textures, vertex snapping, scanline-era effects).
+A TypeScript/WebGL 3D modeler and layout tool in the spirit of mid-90s desktop
+3D software, built for making graphics in that style: low-poly meshes, flat and
+Gouraud shading, low-res renders, affine textures, vertex snapping, and a
+vaporwave look by default.
+
+> Inspired by LightWave 3D. VaporMesh is an independent project and is not
+> affiliated with or endorsed by NewTek or Vizrt.
 
 ## Structure
 

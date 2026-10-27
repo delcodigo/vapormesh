@@ -1,9 +1,9 @@
 {
-  "name": "webwave-3d",
+  "name": "vapormesh",
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "A web port of mid-90s LightWave 3D-style modeling, layout and rendering, in TypeScript",
+  "description": "A web-based 3D modeler and layout tool in the spirit of mid-90s software, with a vaporwave look, in TypeScript",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

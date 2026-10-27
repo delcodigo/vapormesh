@@ -20,7 +20,7 @@ const move = new MoveTool(state);
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
-  <div class="menubar">WebWave 3D &nbsp; | &nbsp; Modeler &nbsp; Layout</div>
+  <div class="menubar">VaporMesh &nbsp; | &nbsp; Modeler &nbsp; Layout</div>
   <div class="workspace">
     <div class="toolpanel">
       <div class="section">Position</div>
