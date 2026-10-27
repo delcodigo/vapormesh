@@ -9,3 +9,4 @@ export * from './paletteView';
 export * from './uvEditor';
 export * from './paletteEditor';
 export * from './download';
+export * from './extrudePanel';

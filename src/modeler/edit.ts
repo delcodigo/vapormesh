@@ -1,5 +1,6 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
 import { AddPrimitiveCommand } from './create';
+import { extrude, type ExtrudeDirection } from './extrude';
 import {
   cloneGeometry,
   deletePoints,
@@ -26,11 +27,11 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /** Points within this distance are the same point to Merge Points. */
 export const MERGE_TOLERANCE = 0.0001;
 
-interface Selection {
+export interface Selection {
   points: number[];
   polygons: number[];
 }
-const snapshotSelection = (state: ModelerState): Selection => ({ points: [...state.selectedPoints], polygons: [...state.selectedPolygons] });
+export const snapshotSelection = (state: ModelerState): Selection => ({ points: [...state.selectedPoints], polygons: [...state.selectedPolygons] });
 function restoreSelection(state: ModelerState, s: Selection): void {
   state.selectedPoints.clear();
   state.selectedPolygons.clear();
@@ -48,16 +49,18 @@ export class ReplaceGeometryCommand implements Command {
   private after: Geometry;
   private selectionBefore: Selection;
 
+  /** `before` defaults to the layer as it is now; pass it when an interactive edit has already changed the layer. */
   constructor(
     readonly label: string,
     private state: ModelerState,
     after: Geometry,
     private selectionAfter: Selection,
+    before?: { geometry: Geometry; selection: Selection },
   ) {
     this.mesh = state.mesh;
-    this.before = cloneGeometry(this.mesh);
+    this.before = cloneGeometry(before?.geometry ?? this.mesh);
     this.after = cloneGeometry(after);
-    this.selectionBefore = snapshotSelection(state);
+    this.selectionBefore = before?.selection ?? snapshotSelection(state);
   }
 
   redo(): void {
@@ -195,4 +198,46 @@ export function pasteClipboard(state: ModelerState): EditResult {
   const count = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i);
   state.applySelection(state.mode === 'points' ? count(before.points, state.mesh.points.length) : count(before.polygons, state.mesh.polygons.length), 'replace');
   return done(`Pasted ${plural(clip.polygons.length, 'polygon')}`);
+}
+
+// --- extrude and bevel -------------------------------------------------------------------------------------------
+
+export type ExtrudeAxis = 'normal' | 'x' | 'y' | 'z';
+
+export interface ExtrudeSettings {
+  distance: number;
+  inset: number;
+  direction: ExtrudeAxis;
+}
+
+export const extrudeDirection = (axis: ExtrudeAxis): ExtrudeDirection =>
+  axis === 'normal' ? { kind: 'normal' } : { kind: 'vector', vector: axis === 'x' ? [1, 0, 0] : axis === 'y' ? [0, 1, 0] : [0, 0, 1] };
+
+/** The texture size of each surface of the active layer, so new walls get UVs at the same density as the rest. */
+export function textureSizeOf(state: ModelerState): (surface: number) => [number, number] {
+  return (surface) => {
+    const texture = state.images.find((i) => i.name === state.mesh.surfaces[surface]?.texture);
+    return [texture?.width ?? DEFAULT_TEXTURE_SIZE, texture?.height ?? DEFAULT_TEXTURE_SIZE];
+  };
+}
+
+const PAST: Record<string, string> = { Extrude: 'Extruded', Bevel: 'Beveled' };
+
+/**
+ * Extrude the selected polygons by a distance, optionally inset (a bevel). The extruded polygons stay selected, so you
+ * can keep extruding; in Point mode their new points are selected.
+ */
+export function extrudeSelection(state: ModelerState, settings: ExtrudeSettings, label: 'Extrude' | 'Bevel' = 'Extrude'): EditResult {
+  const ids = state.selectedPolygonIds();
+  if (ids.length === 0) return fail(`Select polygons to ${label.toLowerCase()}`);
+  if (![settings.distance, settings.inset].every(Number.isFinite)) return fail('Type a number for the distance and the inset');
+  if (settings.distance === 0 && settings.inset === 0) return fail('Set a distance or an inset');
+  const result = extrude(geometryOf(state), new Set(ids), {
+    distance: settings.distance,
+    inset: settings.inset,
+    direction: extrudeDirection(settings.direction),
+    textureSize: textureSizeOf(state),
+  });
+  state.execute(new ReplaceGeometryCommand(label, state, result.geometry, { points: result.capPoints, polygons: ids }));
+  return done(`${PAST[label]} ${plural(ids.length, 'polygon')}`);
 }

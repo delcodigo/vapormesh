@@ -5,7 +5,10 @@ import type { PrimitiveName } from './create';
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';
 export type SelectionOp = 'replace' | 'add' | 'remove';
-export type ToolName = 'move' | 'rotate' | 'size';
+/** Tools whose values the Numeric panel can type in. */
+export type TransformToolName = 'move' | 'rotate' | 'size';
+/** Every tool that owns drags in the viewports. */
+export type ToolName = TransformToolName | 'extrude' | 'bevel';
 
 /** LightWave 4 Modeler has ten layers; the active one is edited, the others show as background. */
 export const LAYER_COUNT = 10;
@@ -21,7 +24,7 @@ export class ModelerState {
   /** User-placed pivot for rotate/size. Null means "centre of what is being edited". */
   customPivot: Vec3 | null = null;
   /** Which tab the Numeric panel shows, or null when it is closed. */
-  numericOp: ToolName | null = null;
+  numericOp: TransformToolName | null = null;
   /** Which primitive's create dialog is open, or null. */
   createOp: PrimitiveName | null = null;
   readonly layers: Mesh[];
@@ -122,7 +125,7 @@ export class ModelerState {
     this.changed();
   }
 
-  setNumericOp(op: ToolName | null): void {
+  setNumericOp(op: TransformToolName | null): void {
     if (op === this.numericOp) return;
     this.numericOp = op;
     this.changed();

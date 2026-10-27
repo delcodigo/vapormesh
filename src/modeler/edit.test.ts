@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Mesh } from '@/core';
+import { assignAutoUvs, type Mesh } from '@/core';
 import {
   copySelection,
   cutSelection,
   deleteSelection,
+  extrudeSelection,
   flipSelection,
   makePolygon,
   mergeCoincidentPoints,
@@ -320,5 +321,81 @@ describe('history interplay', () => {
     s.undo(); // undoing the delete, while the "later edit" was never recorded
     s.redo();
     expect(s.mesh.points[0]).toEqual(box().points[1]); // redo rebuilt from the snapshot, not from the mutated array
+  });
+});
+
+describe('extrudeSelection', () => {
+  const topFace = (s: ModelerState) => s.mesh.polygons.findIndex((p) => p.points.every((i) => s.mesh.points[i]![1] === 0.5));
+  const withTopSelected = () => {
+    const s = fresh();
+    s.setMode('polygons');
+    s.applySelection([topFace(s)], 'replace');
+    return s;
+  };
+
+  it('extrudes the selected polygon, keeps it selected, and undoes everything including the selection', () => {
+    const s = withTopSelected();
+    const before = snapshot(s.mesh);
+    const top = topFace(s);
+    const r = extrudeSelection(s, { distance: 1, inset: 0, direction: 'normal' });
+    expect(r).toEqual({ ok: true, message: 'Extruded 1 polygon' });
+    expect(counts(s)).toEqual([12, 10]);
+    expect([...s.selectedPolygons]).toEqual([top]);
+    expect(s.mesh.polygons[top]!.points.every((i) => s.mesh.points[i]![1] === 1.5)).toBe(true);
+    expect(s.history.undoLabel).toBe('Extrude');
+
+    s.undo();
+    expect(snapshot(s.mesh)).toBe(before);
+    expect([...s.selectedPolygons]).toEqual([top]);
+    s.redo();
+    expect(counts(s)).toEqual([12, 10]);
+  });
+
+  it('can be repeated on the extruded polygons, which stay selected', () => {
+    const s = withTopSelected();
+    extrudeSelection(s, { distance: 1, inset: 0, direction: 'normal' });
+    extrudeSelection(s, { distance: 1, inset: 0, direction: 'normal' });
+    expect(counts(s)).toEqual([16, 14]);
+    const top = [...s.selectedPolygons][0]!;
+    expect(s.mesh.polygons[top]!.points.every((i) => s.mesh.points[i]![1] === 2.5)).toBe(true);
+  });
+
+  it('works from Point mode: polygons whose points are all selected, and the new points end up selected', () => {
+    const s = fresh();
+    const topPoints = s.mesh.points.flatMap((p, i) => (p[1] === 0.5 ? [i] : []));
+    s.applySelection(topPoints, 'replace');
+    extrudeSelection(s, { distance: 0.5, inset: 0, direction: 'normal' });
+    expect(s.selectedPoints.size).toBe(4);
+    expect([...s.selectedPoints].every((i) => s.mesh.points[i]![1] === 1)).toBe(true);
+  });
+
+  it('a bevel is an extrude with an inset, named for what it is', () => {
+    const s = withTopSelected();
+    expect(extrudeSelection(s, { distance: 0.1, inset: 0.1, direction: 'normal' }, 'Bevel').message).toBe('Beveled 1 polygon');
+    expect(s.history.undoLabel).toBe('Bevel');
+  });
+
+  it('gives the walls UVs sized for the surface texture', () => {
+    const at = (size: number) => {
+      const t = withTopSelected();
+      assignAutoUvs(t.mesh); // the plain box helper has none, and walls only get UVs when their polygon has them
+      t.images.push({ name: 'T', width: size, height: size, pixels: new Uint8Array(size * size) });
+      t.mesh.surfaces[0]!.texture = 'T';
+      extrudeSelection(t, { distance: 1, inset: 0, direction: 'normal' });
+      const wall = t.mesh.polygons.at(-1)!.uvs!;
+      return Math.hypot(wall[1]![0] - wall[0]![0], wall[1]![1] - wall[0]![1]);
+    };
+    expect(at(128)).toBeCloseTo(at(64) / 2, 9);
+  });
+
+  it('says why it cannot, and records nothing', () => {
+    const s = fresh();
+    expect(extrudeSelection(s, { distance: 1, inset: 0, direction: 'normal' })).toEqual({ ok: false, message: 'Select polygons to extrude' });
+    expect(extrudeSelection(s, { distance: 1, inset: 0, direction: 'normal' }, 'Bevel').message).toBe('Select polygons to bevel');
+    s.setMode('polygons');
+    s.applySelection([0], 'replace');
+    expect(extrudeSelection(s, { distance: 0, inset: 0, direction: 'normal' }).message).toBe('Set a distance or an inset');
+    expect(extrudeSelection(s, { distance: NaN, inset: 0, direction: 'normal' }).message).toBe('Type a number for the distance and the inset');
+    expect(s.history.canUndo).toBe(false);
   });
 });

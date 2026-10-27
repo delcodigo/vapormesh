@@ -1,5 +1,5 @@
 import { makeDraggable } from './draggable';
-import { applyNumeric, type ModelerState, type NumericOp, type ToolName } from '@/modeler';
+import { applyNumeric, type ModelerState, type NumericOp, type TransformToolName } from '@/modeler';
 import type { Vec3 } from '@/core';
 
 interface OpSpec {
@@ -9,12 +9,12 @@ interface OpSpec {
   usesPivot: boolean;
 }
 
-const OPS: Record<ToolName, OpSpec> = {
+const OPS: Record<TransformToolName, OpSpec> = {
   move: { label: 'Move', heading: 'Offset', defaults: ['0', '0', '0'], usesPivot: false },
   rotate: { label: 'Rotate', heading: 'Angle (deg, X→Y→Z)', defaults: ['0', '0', '0'], usesPivot: true },
   size: { label: 'Size', heading: 'Factor', defaults: ['1', '1', '1'], usesPivot: true },
 };
-const OP_NAMES = Object.keys(OPS) as ToolName[];
+const OP_NAMES = Object.keys(OPS) as TransformToolName[];
 
 const fmt = (n: number) => String(Math.round(n * 1e4) / 1e4);
 const row = (field: string) =>
@@ -50,8 +50,8 @@ export function createNumericPanel(state: ModelerState, host: HTMLElement): Nume
   const pivotInputs = [...el.querySelectorAll<HTMLInputElement>('[data-field="pivot"]')];
   const valueInputs = [...el.querySelectorAll<HTMLInputElement>('[data-field="value"]')];
   const tabs = [...el.querySelectorAll<HTMLButtonElement>('[data-op]')];
-  const values = Object.fromEntries(OP_NAMES.map((o) => [o, [...OPS[o].defaults]])) as Record<ToolName, string[]>;
-  let op: ToolName = 'move';
+  const values = Object.fromEntries(OP_NAMES.map((o) => [o, [...OPS[o].defaults]])) as Record<TransformToolName, string[]>;
+  let op: TransformToolName = 'move';
   let lastTool = state.activeTool;
 
   const parse = (inputs: HTMLInputElement[]): Vec3 | null => {
@@ -60,7 +60,7 @@ export function createNumericPanel(state: ModelerState, host: HTMLElement): Nume
     return nums.every(Number.isFinite) ? (nums as Vec3) : null;
   };
 
-  const showOp = (next: ToolName) => {
+  const showOp = (next: TransformToolName) => {
     op = next;
     tabs.forEach((t) => t.classList.toggle('active', t.dataset.op === op));
     q('[data-group="pivot"]').hidden = !OPS[op].usesPivot;
@@ -105,7 +105,7 @@ export function createNumericPanel(state: ModelerState, host: HTMLElement): Nume
     });
     input.addEventListener('keydown', (e) => e.key === 'Enter' && input.blur());
   });
-  tabs.forEach((t) => t.addEventListener('click', () => showOp(t.dataset.op as ToolName)));
+  tabs.forEach((t) => t.addEventListener('click', () => showOp(t.dataset.op as TransformToolName)));
 
   const actions: Record<string, () => void> = {
     close: () => toggle(),
@@ -125,7 +125,7 @@ export function createNumericPanel(state: ModelerState, host: HTMLElement): Nume
     if (el.hidden) return;
     syncPivot();
     // Picking a tool while the panel is open switches the panel to it.
-    if (state.activeTool && state.activeTool !== lastTool) showOp(state.activeTool);
+    if (state.activeTool && state.activeTool !== lastTool && state.activeTool in OPS) showOp(state.activeTool as TransformToolName);
     lastTool = state.activeTool;
   });
 
@@ -134,7 +134,7 @@ export function createNumericPanel(state: ModelerState, host: HTMLElement): Nume
     if (el.hidden) {
       state.setNumericOp(null);
     } else {
-      showOp(state.activeTool ?? op);
+      showOp(state.activeTool && state.activeTool in OPS ? (state.activeTool as TransformToolName) : op);
       syncPivot();
     }
   }

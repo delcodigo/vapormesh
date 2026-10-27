@@ -167,3 +167,12 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .numeric.palette-editor { left: 560px; top: 8px; width: 250px; }
 .pal-info { margin: 3px 0; font: 11px 'Courier New', monospace; color: var(--ink); min-height: 14px; }
 .numeric .numeric-row input[type='text'] + button { margin-left: 4px; flex: none; }
+
+/* extrude / bevel options: they show with the tool */
+.numeric.extrude { right: 8px; top: 260px; width: 214px; }
+.numeric.extrude .numeric-row select { width: 100%; }
+
+/* the tool panel has outgrown a short window: let it scroll, and pack it a little tighter */
+.toolpanel { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--lo) var(--panel); }
+.toolpanel button { margin-bottom: 2px; padding-top: 1px; padding-bottom: 1px; }
+.toolpanel .section { margin: 6px 0 3px; }

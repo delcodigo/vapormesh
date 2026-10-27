@@ -7,6 +7,7 @@ import {
   copySelection,
   cutSelection,
   deleteSelection,
+  ExtrudeTool,
   flipSelection,
   makePolygon,
   mergeCoincidentPoints,
@@ -25,9 +26,11 @@ import {
   type ToolName,
 } from '@/modeler';
 import {
+  createExtrudePanel,
   createFileActions,
   createImagesPanel,
   type EditorBridge,
+  type ExtrudePanel,
   createNumericPanel,
   createPaletteEditor,
   createPrimitivePanel,
@@ -65,6 +68,10 @@ const VIEW_MODES: [ViewMode, string][] = [
   ['shaded', 'Shaded'],
   ['shaded-wire', 'Shaded+Wire'],
 ];
+const MULTIPLY_TOOLS: [ToolName, string][] = [
+  ['extrude', 'Extrude'],
+  ['bevel', 'Bevel'],
+];
 const TOOLS: [ToolName, string][] = [
   ['move', 'Move'],
   ['rotate', 'Rotate'],
@@ -78,10 +85,13 @@ const display = defaultDisplay();
 // ?view=shaded opens straight into a shaded Perspective view
 const requested = new URLSearchParams(location.search).get('view');
 if (VIEW_MODES.some(([m]) => m === requested)) display.mode = requested as ViewMode;
+let extrudePanel: ExtrudePanel | null = null; // created once the page exists; the tools ask it for their options
 const dragTools: Record<ToolName, DragTool> = {
   move: new MoveTool(state),
   rotate: new RotateTool(state),
   size: new SizeTool(state),
+  extrude: new ExtrudeTool(state, () => extrudePanel!.options('extrude'), 'Extrude'),
+  bevel: new ExtrudeTool(state, () => extrudePanel!.options('bevel'), 'Bevel'),
 };
 const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : null);
 
@@ -97,6 +107,8 @@ app.innerHTML = `
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
+      <div class="section">Multiply</div>
+      ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first">${label}</button>`).join('')}
       <div class="section">Create</div>
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
       <div class="section">Surface</div>
@@ -163,6 +175,7 @@ toolButtons.forEach((b) =>
   }),
 );
 const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
+extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];

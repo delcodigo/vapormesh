@@ -11,5 +11,7 @@ export * from './uvEdit';
 export * from './images';
 export * from './palette';
 export * from './geometry';
+export * from './extrude';
+export * from './extrudeTool';
 export * from './edit';
 export * from './state';
