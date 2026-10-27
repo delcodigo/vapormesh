@@ -66,6 +66,17 @@ It needs a browser with WebGL 2.
 
 `design/` holds reference screenshots and is deliberately not committed.
 
-## Licence
+## Licence and credits
 
-[MIT](LICENSE).
+VaporMesh is [MIT](LICENSE). The only third-party code in the built app is [three.js](https://threejs.org) (MIT), whose notice
+ships with the build as [`THIRD-PARTY-LICENSES.txt`](public/THIRD-PARTY-LICENSES.txt). Everything else installed is a build
+or test tool (Vite, Vitest, TypeScript) and is not part of what you ship.
+
+The code is original to this repository. It uses well-known published techniques, written from scratch:
+
+- Booleans merge BSP trees (Naylor, Amanatides and Thibault, 1990), the same family as `csg.js`.
+- Concave polygons are triangulated by ear clipping (Meisters, 1975).
+- The retro look uses Bayer ordered dither (1973) and Gouraud shading (1971).
+- The knife splits polygons against a plane in the usual way, then repairs T-junctions.
+
+None of it comes from Blender (GPL) or from LightWave. The tool names are generic modelling terms.
