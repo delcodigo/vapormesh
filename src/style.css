@@ -177,6 +177,9 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .numeric.position .position-size { color: var(--lo); font-size: 11px; min-height: 13px; padding: 1px 2px; }
 .numeric.position .msg:empty { display: none; }
 
+.numeric.array { width: 232px; }
+.numeric.array .numeric-row input { min-width: 0; }
+
 /* deformer options: they show with the tool */
 .numeric.deform { right: 8px; top: 260px; width: 214px; }
 .numeric.deform .numeric-row select { width: 100%; }

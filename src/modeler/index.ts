@@ -13,6 +13,7 @@ export * from './palette';
 export * from './geometry';
 export * from './extrude';
 export * from './extrudeTool';
+export * from './array';
 export * from './mirror';
 export * from './knife';
 export * from './knifeTool';

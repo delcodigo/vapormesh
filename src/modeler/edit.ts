@@ -1,4 +1,5 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
+import { array, MAX_ARRAY_COUNT, MAX_ARRAY_POLYGONS } from './array';
 import { booleanMeshes, BooleanError, type BooleanOp } from './boolean';
 import { AddPrimitiveCommand } from './create';
 import { deformer, extentAlong, type DeformSpec } from './deform';
@@ -345,4 +346,35 @@ export function deformSelection(state: ModelerState, spec: DeformSpec): EditResu
   if (!after.some((p, i) => p.some((c, k) => c !== before[i]![k]))) return fail(`The ${label.toLowerCase()} changes nothing`);
   state.execute(new TransformPointsCommand(label, state.mesh, ids, before, after));
   return done(`${DEFORM_PAST[spec.kind]} ${plural(ids.length, 'point')}`);
+}
+
+// --- array / clone ---------------------------------------------------------------------------------------------------
+
+export interface ArraySettings {
+  count: number;
+  offset: Vec3;
+  /** Degrees per copy about X, Y and Z. */
+  rotate: Vec3;
+  scale: Vec3;
+}
+
+/**
+ * Copy the selected polygons (or the whole layer, if none are selected) `count` times, each copy stepped by the offset, turned
+ * and scaled relative to the one before. Rotation and scaling are about the pivot (the one you placed, or the centre of what is
+ * copied). The copies end up selected.
+ */
+export function arraySelection(state: ModelerState, settings: ArraySettings): EditResult {
+  const { count, offset, rotate, scale } = settings;
+  if (!Number.isInteger(count) || count < 1) return fail('The number of copies must be a whole number, at least 1');
+  if (count > MAX_ARRAY_COUNT) return fail(`At most ${MAX_ARRAY_COUNT} copies at once`);
+  if (![...offset, ...rotate, ...scale].every(Number.isFinite)) return fail('Type a number in every field');
+  if (!scale.every((f) => f > 0)) return fail('The size factors must be above zero');
+  const ids = targetPolygons(state);
+  if (ids.length === 0) return fail('There is nothing to copy');
+  if (ids.length * count > MAX_ARRAY_POLYGONS) return fail(`That would add ${ids.length * count} polygons; the limit is ${MAX_ARRAY_POLYGONS}`);
+  const geo = geometryOf(state);
+  const pivot = state.pivotFor([...new Set(ids.flatMap((id) => geo.polygons[id]!.points))])!;
+  const result = array(geo, new Set(ids), { count, offset, rotate, scale, pivot });
+  state.execute(new ReplaceGeometryCommand('Array', state, result.geometry, { points: result.newPoints, polygons: result.newPolygons }));
+  return done(`Added ${count === 1 ? '1 copy' : `${count} copies`} of ${plural(ids.length, 'polygon')}`);
 }

@@ -37,6 +37,7 @@ import {
 } from '@/modeler';
 import {
   createDeformPanel,
+  createArrayPanel,
   createExtrudePanel,
   createPositionPanel,
   createBooleanPanel,
@@ -178,6 +179,7 @@ app.innerHTML = `
       </div>
       <div class="tabpage" data-page="multiply">
         ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}">${label}</button>`).join('')}
+        <button data-action="array" title="Copy polygons several times, stepping each copy">Array</button>
         <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
         <button data-tool="knife" title="Drag a line across polygons to cut them along it; hold Shift for a horizontal or vertical slice (K)">Knife</button>
         <button data-action="boolean" title="Add, subtract or intersect the solids on two layers">Boolean</button>
@@ -310,6 +312,7 @@ const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surfac
 const imagesButton = app.querySelector<HTMLButtonElement>('[data-action="images"]')!;
 const uvButton = app.querySelector<HTMLButtonElement>('[data-action="uv"]')!;
 const paletteButton = app.querySelector<HTMLButtonElement>('[data-action="palette"]')!;
+const arrayButton = app.querySelector<HTMLButtonElement>('[data-action="array"]')!;
 const mirrorButton = app.querySelector<HTMLButtonElement>('[data-action="mirror"]')!;
 const booleanButton = app.querySelector<HTMLButtonElement>('[data-action="boolean"]')!;
 const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
@@ -317,6 +320,7 @@ const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classL
 const images = createImagesPanel(state, workspace, () => imagesButton.classList.toggle('active', images.isOpen()));
 const uvEditor = createUvEditor(state, workspace, () => uvButton.classList.toggle('active', uvEditor.isOpen()));
 const paletteEditor = createPaletteEditor(state, workspace, () => paletteButton.classList.toggle('active', paletteEditor.isOpen()));
+const arrayPanel = createArrayPanel(state, workspace, () => arrayButton.classList.toggle('active', arrayPanel.isOpen()));
 const mirrorPanel = createMirrorPanel(state, workspace, () => mirrorButton.classList.toggle('active', mirrorPanel.isOpen()));
 const booleanPanel = createBooleanPanel(state, workspace, () => booleanButton.classList.toggle('active', booleanPanel.isOpen()));
 const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
@@ -384,6 +388,7 @@ const ACTIONS: Record<string, () => void> = {
   images: () => images.toggle(),
   uv: () => uvEditor.toggle(),
   palette: () => paletteEditor.toggle(),
+  array: () => arrayPanel.toggle(),
   mirror: () => mirrorPanel.toggle(),
   boolean: () => booleanPanel.toggle(),
   render: () => renderSettings.toggle(),
