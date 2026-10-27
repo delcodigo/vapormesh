@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Vec3 } from '@/core';
+import { THEME } from '@/theme';
 import type { Projector, ScreenPoint } from './pick';
 
 export type ViewKind = 'perspective' | 'top' | 'face' | 'left';
@@ -12,10 +13,6 @@ const ORTHO: Record<OrthoKind, { dir: THREE.Vector3Tuple; up: THREE.Vector3Tuple
   left: { dir: [-1, 0, 0], up: [0, 1, 0], plane: [2, 1] }, // ZY, +Z to the right as in LightWave
 };
 
-const AXIS_COLORS = [0x8a4a4a, 0x4a8a4a, 0x4a5a9a];
-const MINOR = 0x575757;
-const MAJOR = 0x686868;
-const BACKGROUND = 0x4a4a4a;
 const MIN_GRID_PIXELS = 24;
 const CLICK_SLOP = 4;
 
@@ -54,8 +51,9 @@ export class Viewport implements Projector {
     readonly canvas: HTMLCanvasElement,
     readonly kind: ViewKind = 'perspective',
   ) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-    this.renderer.setClearColor(BACKGROUND);
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+    // Transparent canvas: the viewport's CSS gradient shows through.
+    this.renderer.setClearColor(0x000000, 0);
     this.camera =
       kind === 'perspective'
         ? new THREE.PerspectiveCamera(45, 1, 0.1, 1000)
@@ -273,7 +271,7 @@ export class Viewport implements Projector {
     };
     const lines = (lo: number, hi: number, emit: (x: number, hex: number) => void, axis: number) => {
       for (let k = Math.ceil(lo / step); k <= Math.floor(hi / step); k++) {
-        emit(k * step, k === 0 ? AXIS_COLORS[axis]! : k % 10 === 0 ? MAJOR : MINOR);
+        emit(k * step, k === 0 ? THEME.axes[axis]! : k % 10 === 0 ? THEME.gridMajor : THEME.gridMinor);
       }
     };
     const [u0, u1, v0, v1] = [cu - uHalf, cu + uHalf, cv - vHalf, cv + vHalf];

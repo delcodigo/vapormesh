@@ -20,7 +20,7 @@ const move = new MoveTool(state);
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
-  <div class="menubar">VaporMesh &nbsp; | &nbsp; Modeler &nbsp; Layout</div>
+  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span></div>
   <div class="workspace">
     <div class="toolpanel">
       <div class="section">Position</div>
