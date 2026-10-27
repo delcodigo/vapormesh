@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Mesh, Vec3 } from '@/core';
 import { pickPoint, pickPolygon, pointsInLasso, pointsInRect, polygonsInLasso, type Projector } from '@/render/pick';
 import { deleteSelection } from './edit';
-import { PointDragTool } from './deformTools';
+import { ExtrudeTool } from './extrudeTool';
+import { SizeTool } from './pivotTools';
+import { MagnetTool, PointDragTool, StretchTool } from './deformTools';
 import { MoveTool } from './moveTool';
 import type { DragMove, ViewInfo } from './pointDrag';
 import { box } from './primitives';
@@ -311,5 +313,68 @@ describe('snapping', () => {
     expect(s.snap).toBe(0);
     s.setSnap(0.5);
     expect(s.snap).toBe(0.5);
+  });
+});
+
+describe('snapping everywhere', () => {
+  const view: ViewInfo = { isOrtho: true, viewAxis: [0, 0, 1], project: ([x, y]) => ({ x: x * 100, y: -y * 100 }), unproject: (x, y) => [x / 100, -y / 100, 0] };
+  const at = (start: { x: number; y: number }, current: { x: number; y: number }, offset: Vec3 = [0, 0, 0]): DragMove => ({ offset, start, current });
+
+  it('snaps to a tenth of a unit unless told otherwise', () => {
+    expect(new ModelerState().snap).toBe(0.1);
+  });
+
+  it('snaps the extrude distance to the grid, and snapping off gives the exact distance', () => {
+    const s = new ModelerState(box());
+    s.setMode('polygons');
+    const top = s.mesh.polygons.findIndex((p) => p.points.every((i) => s.mesh.points[i]![1] === 0.5));
+    s.applySelection([top], 'replace');
+    const tool = new ExtrudeTool(s, () => ({ inset: 0, direction: 'normal' }), 'Extrude');
+    const height = () => Math.max(...s.mesh.points.map((p) => p[1]));
+    tool.begin(view);
+    tool.move(at({ x: 0, y: 0 }, { x: 0, y: 0 }, [0, 0.337, 0]));
+    tool.end();
+    expect(height()).toBeCloseTo(0.8, 9); // 0.5 + 0.3
+    s.undo();
+    s.applySelection([top], 'replace');
+    s.setSnap(0);
+    tool.begin(view);
+    tool.move(at({ x: 0, y: 0 }, { x: 0, y: 0 }, [0, 0.337, 0]));
+    tool.end();
+    expect(height()).toBeCloseTo(0.837, 9);
+  });
+
+  it('snaps Size and Stretch to steps of the grid, and never lets them collapse', () => {
+    const size = new ModelerState(box(2, 2, 2));
+    const t = new SizeTool(size);
+    t.begin(view);
+    t.move(at({ x: 100, y: 0 }, { x: 123, y: 0 })); // ratio 1.23
+    t.end();
+    expect(Math.max(...size.mesh.points.map((p) => p[0]))).toBeCloseTo(1.2, 9);
+
+    const stretch = new ModelerState(box(2, 2, 2));
+    const st = new StretchTool(stretch);
+    st.begin(view);
+    st.move(at({ x: 100, y: 100 }, { x: 156, y: 100 })); // x ratio 1.56, y unchanged
+    st.end();
+    expect(Math.max(...stretch.mesh.points.map((p) => p[0]))).toBeCloseTo(1.6, 9);
+    expect(Math.max(...stretch.mesh.points.map((p) => p[1]))).toBeCloseTo(1, 9);
+
+    const squash = new ModelerState(box(2, 2, 2));
+    const sq = new StretchTool(squash);
+    sq.begin(view);
+    sq.move(at({ x: 400, y: 100 }, { x: 16, y: 100 })); // ratio 0.04: would snap to zero
+    expect(Math.max(...squash.mesh.points.map((p) => p[0]))).toBeCloseTo(0.1, 9); // one step, not zero
+    sq.cancel();
+  });
+
+  it('snaps the Magnet pull, like Move', () => {
+    const s = new ModelerState(box(2, 2, 2));
+    const t = new MagnetTool(s, () => ({ radius: 5 }));
+    t.begin(view, { x: 100, y: -100 });
+    t.move(at({ x: 0, y: 0 }, { x: 0, y: 0 }, [0.26, 0, 0]));
+    t.end();
+    // the point under the magnet's centre moved by the snapped 0.3, not 0.26
+    expect(Math.max(...s.mesh.points.map((p) => p[0]))).toBeCloseTo(1.3, 9);
   });
 });

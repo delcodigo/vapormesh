@@ -1,5 +1,6 @@
 import { rotateAround, type Vec3 } from '@/core';
 import { PointDrag, type DragMove, type ViewInfo } from './pointDrag';
+import { snapFactor } from './selectTools';
 import type { ModelerState } from './state';
 
 /** Pixels around the pivot within which the Size tool treats the cursor as this far away. */
@@ -46,7 +47,7 @@ export class SizeTool extends PivotDrag {
   move({ start, current }: DragMove): void {
     const { x, y } = this.pivotScreen;
     const radius = (p: { x: number; y: number }) => Math.max(Math.hypot(p.x - x, p.y - y), MIN_SIZE_RADIUS);
-    const f = Math.max(radius(current) / radius(start), MIN_SCALE);
+    const f = snapFactor(Math.max(radius(current) / radius(start), MIN_SCALE), this.state.snap);
     const c = this.pivot;
     this.transform((p): Vec3 => [c[0] + (p[0] - c[0]) * f, c[1] + (p[1] - c[1]) * f, c[2] + (p[2] - c[2]) * f]);
   }

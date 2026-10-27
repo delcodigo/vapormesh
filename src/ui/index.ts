@@ -11,6 +11,7 @@ export * from './paletteEditor';
 export * from './download';
 export * from './deformPanel';
 export * from './extrudePanel';
+export * from './positionPanel';
 export * from './mirrorPanel';
 export * from './knifePanel';
 export * from './booleanPanel';

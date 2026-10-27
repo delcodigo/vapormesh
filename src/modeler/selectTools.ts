@@ -159,6 +159,9 @@ export function unhideAll(state: ModelerState): EditResult {
 /** Round `value` to the nearest multiple of `grid`, or leave it alone when the grid is 0. */
 export const snapValue = (value: number, grid: number): number => (grid > 0 ? Math.round(value / grid) * grid : value);
 
+/** Snap a scale factor to whole grid steps (1.0, 1.1, 1.2 ... for 0.1), never below one step so nothing collapses. */
+export const snapFactor = (factor: number, grid: number): number => (grid > 0 ? Math.max(snapValue(factor, grid), grid) : factor);
+
 /** Snap a world-space drag offset to whole grid steps, so moved points keep their place relative to the grid. */
 export function snapOffset(offset: Vec3, grid: number): Vec3 {
   return [snapValue(offset[0], grid) + 0, snapValue(offset[1], grid) + 0, snapValue(offset[2], grid) + 0];

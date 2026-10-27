@@ -1,7 +1,7 @@
 import type { Vec3 } from '@/core';
 import { deformer, magnet, magnetWeight, type DeformAxis, type DeformSpec } from './deform';
 import { PointDrag, type DragMove, type ViewInfo } from './pointDrag';
-import { snapPointInView } from './selectTools';
+import { snapFactor, snapOffset, snapPointInView } from './selectTools';
 import type { ModelerState } from './state';
 
 /** Pixels around the pivot within which Stretch treats the cursor as this far away. */
@@ -87,7 +87,8 @@ export class StretchTool extends PointDrag {
 
   move({ start, current }: DragMove): void {
     const { x, y } = this.pivotScreen;
-    const ratio = (c: number, s: number, o: number) => Math.max(Math.max(Math.abs(c - o), MIN_STRETCH_RADIUS) / Math.max(Math.abs(s - o), MIN_STRETCH_RADIUS), MIN_SCALE);
+    const grid = this.state.snap;
+    const ratio = (c: number, s: number, o: number) => snapFactor(Math.max(Math.max(Math.abs(c - o), MIN_STRETCH_RADIUS) / Math.max(Math.abs(s - o), MIN_STRETCH_RADIUS), MIN_SCALE), grid);
     const factors: Vec3 = [1, 1, 1];
     factors[this.across[0]] = ratio(current.x, start.x, x);
     factors[this.across[1]] = ratio(current.y, start.y, y);
@@ -161,6 +162,6 @@ export class MagnetTool extends PointDrag {
   }
 
   move({ offset }: DragMove): void {
-    this.transform(magnet(this.center, this.viewAxis, this.radius, offset));
+    this.transform(magnet(this.center, this.viewAxis, this.radius, snapOffset(offset, this.state.snap)));
   }
 }

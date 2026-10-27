@@ -38,6 +38,7 @@ import {
 import {
   createDeformPanel,
   createExtrudePanel,
+  createPositionPanel,
   createBooleanPanel,
   createFileActions,
   createKnifePanel,
@@ -154,6 +155,7 @@ app.innerHTML = `
       <button data-action="select" title="Selection: drag to select (Q)">Select</button>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}" title="${label} (${label === 'Size' ? 'S' : label[0]})">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
+      <button data-action="position" title="Show and edit where the selected points are (I)">Position</button>
       <label class="snap" title="Moves and Drag snap to this grid"><span>Snap</span><select data-snap>${SNAPS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
       <div class="section">Deform</div>
       ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
@@ -242,6 +244,9 @@ extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
 const lassoButton = app.querySelector<HTMLButtonElement>('[data-action="lasso"]')!;
 const selectButton = app.querySelector<HTMLButtonElement>('[data-action="select"]')!;
+const positionButton = app.querySelector<HTMLButtonElement>('[data-action="position"]')!;
+const positionPanel = createPositionPanel(state, app.querySelector('.workspace')!, () => positionButton.classList.toggle('active', positionPanel.isOpen()));
+positionButton.classList.add('active');
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
@@ -329,6 +334,7 @@ const ACTIONS: Record<string, () => void> = {
   load: () => files.load(),
   save: () => files.save(),
   numeric: () => numeric.toggle(),
+  position: () => positionPanel.toggle(),
   surface: () => surfaces.toggle(),
   images: () => images.toggle(),
   uv: () => uvEditor.toggle(),
@@ -431,6 +437,7 @@ window.addEventListener('keydown', (e) => {
     if (!e.altKey && Object.hasOwn(TOOL_KEYS, key)) state.setTool(TOOL_KEYS[key]!);
     if (key === 'p') state.setMode(state.mode === 'points' ? 'polygons' : 'points');
     if (key === 'n') numeric.toggle();
+    if (key === 'i') positionPanel.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }

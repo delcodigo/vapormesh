@@ -13,6 +13,7 @@ const snapshot = (s: ModelerState) => JSON.stringify({ p: s.mesh.points, q: s.me
 
 function setup(settings: ExtrudeToolSettings = NORMAL, label: 'Extrude' | 'Bevel' = 'Extrude') {
   const s = new ModelerState(box());
+  s.setSnap(0); // these tests drag freely; snapping has its own
   s.setMode('polygons');
   const top = s.mesh.polygons.findIndex((p) => p.points.every((i) => s.mesh.points[i]![1] === 0.5));
   s.applySelection([top], 'replace');

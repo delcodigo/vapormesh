@@ -171,6 +171,12 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .pal-info { margin: 3px 0; font: 11px 'Courier New', monospace; color: var(--ink); min-height: 14px; }
 .numeric .numeric-row input[type='text'] + button { margin-left: 4px; flex: none; }
 
+/* where the selected points are: a small strip at the bottom of the views */
+.numeric.position { top: auto; right: auto; left: 120px; bottom: 36px; width: 258px; }
+.numeric.position[hidden] { display: none; }
+.numeric.position .position-size { color: var(--lo); font-size: 11px; min-height: 13px; padding: 1px 2px; }
+.numeric.position .msg:empty { display: none; }
+
 /* deformer options: they show with the tool */
 .numeric.deform { right: 8px; top: 260px; width: 214px; }
 .numeric.deform .numeric-row select { width: 100%; }

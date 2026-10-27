@@ -2,6 +2,9 @@ import { defaultImages, defaultPalette, Mesh, type IndexedImage, type Palette, t
 import { History, type Command } from './history';
 import type { PrimitiveName } from './create';
 
+/** Grid step new sessions start with. */
+export const DEFAULT_SNAP = 0.1;
+
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';
 export type SelectionOp = 'replace' | 'add' | 'remove';
@@ -214,8 +217,8 @@ export class ModelerState {
     return mesh.polygons.flatMap((_, i) => (mesh.hidden.has(i) ? [] : [i]));
   }
 
-  /** Grid size that moves snap to, or 0 for no snapping. */
-  snap = 0;
+  /** Grid step that moves, drags, extrusions and size factors snap to, or 0 for no snapping. */
+  snap = DEFAULT_SNAP;
 
   setSnap(size: number): void {
     const next = Number.isFinite(size) && size > 0 ? size : 0;
@@ -252,6 +255,12 @@ export class ModelerState {
     }
     if (mode === 'points') return [...selection];
     return [...new Set([...selection].flatMap((pi) => mesh.polygons[pi]!.points))];
+  }
+
+  /** The points the selection stands for: the selected points, or those of the selected polygons. Empty if nothing is selected. */
+  selectedPointIds(): number[] {
+    if (this.mode === 'points') return [...this.selectedPoints];
+    return [...new Set([...this.selectedPolygons].flatMap((pi) => this.mesh.polygons[pi]?.points ?? []))];
   }
 
   /** Centre of the bounding box of the given points. */

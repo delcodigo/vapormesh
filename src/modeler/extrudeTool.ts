@@ -3,6 +3,7 @@ import { extrudeDirection, ReplaceGeometryCommand, snapshotSelection, textureSiz
 import { averageNormal, extrude, type ExtrudeResult } from './extrude';
 import { cloneGeometry, type Geometry } from './geometry';
 import type { DragMove, DragTool, ViewInfo } from './pointDrag';
+import { snapValue } from './selectTools';
 import type { ModelerState } from './state';
 
 /** What the options panel decides; the distance comes from the drag. */
@@ -44,7 +45,7 @@ export class ExtrudeTool implements DragTool {
   }
 
   move({ offset }: DragMove): void {
-    const distance = dot(offset, this.basis);
+    const distance = snapValue(dot(offset, this.basis), this.state.snap) + 0;
     const { inset, direction } = this.settings();
     if (Math.abs(distance) < 1e-9 && inset === 0) {
       this.result = null; // nothing to show yet: the original geometry
