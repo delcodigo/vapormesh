@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assignAutoUvs, type Mesh } from '@/core';
 import {
+  booleanLayers,
   copySelection,
   cutSelection,
   deleteSelection,
@@ -15,7 +16,8 @@ import {
   weldSelection,
 } from './edit';
 import { axisPlane } from './knife';
-import { box } from './primitives';
+import { meshVolume } from './boolean';
+import { box, createBox } from './primitives';
 import { ModelerState } from './state';
 
 const snapshot = (m: Mesh) => JSON.stringify({ points: m.points, polygons: m.polygons });
@@ -509,5 +511,83 @@ describe('knifeSelection', () => {
     expect(knifeSelection(s, { normal: [NaN, 0, 0], offset: 0 }, keep).ok).toBe(false);
     expect(knifeSelection(new ModelerState(), axisPlane('x', 0), keep).message).toBe('There is nothing to cut');
     expect(s.history.canUndo).toBe(false);
+  });
+});
+
+describe('booleanLayers', () => {
+  const solidBox = (min: number, max: number) => createBox({ size: [max - min, 2, 2], center: [(min + max) / 2, 0, 0], segments: [1, 1, 1] });
+  /** Layer 1: a box from x = -1 to 1. Layer 2: one from x = 0 to 2. Layer 3 is free. */
+  function twoBoxes() {
+    const s = new ModelerState();
+    s.layers[0]!.append(solidBox(-1, 1));
+    s.layers[1]!.append(solidBox(0, 2));
+    return s;
+  }
+  const request = (operation: 'add' | 'subtract' | 'intersect', target = 2) => ({ object: 0, cutter: 1, target, operation });
+
+  it('puts the result on the third layer and switches to it, leaving both originals untouched', () => {
+    const s = twoBoxes();
+    const originals = [snapshot(s.layers[0]!), snapshot(s.layers[1]!)];
+    const r = booleanLayers(s, request('add'));
+    expect(r.ok).toBe(true);
+    expect(r.message).toMatch(/^Added layer 1 and layer 2: \d+ polygons on layer 3$/);
+    expect(s.activeLayer).toBe(2);
+    expect(meshVolume(s.layers[2]!)).toBeCloseTo(12, 6);
+    expect([snapshot(s.layers[0]!), snapshot(s.layers[1]!)]).toEqual(originals);
+    expect(s.history.undoLabel).toBe('Boolean Add');
+  });
+
+  it('undo empties the result layer and goes back to the layer you were on; redo brings it back', () => {
+    const s = twoBoxes();
+    s.setActiveLayer(1);
+    booleanLayers(s, request('subtract'));
+    expect(s.activeLayer).toBe(2);
+    s.undo();
+    expect(s.layers[2]!.polygons).toHaveLength(0);
+    expect(s.activeLayer).toBe(1);
+    s.redo();
+    expect(meshVolume(s.layers[2]!)).toBeCloseTo(4, 6);
+  });
+
+  it('subtract and intersect say what they did', () => {
+    const s = twoBoxes();
+    expect(booleanLayers(s, request('subtract', 2)).message).toMatch(/^Subtracted layer 2 from layer 1/);
+    expect(booleanLayers(s, request('intersect', 3)).message).toMatch(/^Intersected layer 1 and layer 2/);
+    expect(meshVolume(s.layers[3]!)).toBeCloseTo(4, 6);
+  });
+
+  it('adds to a layer that already has geometry instead of replacing it', () => {
+    const s = twoBoxes();
+    s.layers[2]!.append(solidBox(10, 12));
+    const before = s.layers[2]!.polygons.length;
+    booleanLayers(s, request('intersect'));
+    expect(s.layers[2]!.polygons.length).toBeGreaterThan(before);
+    s.undo();
+    expect(s.layers[2]!.polygons).toHaveLength(before);
+  });
+
+  it('explains what is wrong with the layers, in terms of layers', () => {
+    const s = twoBoxes();
+    expect(booleanLayers(s, { ...request('add'), cutter: 0 }).message).toBe('Pick two different layers: one for the object and one for the cutter');
+    expect(booleanLayers(s, request('add', 1)).message).toBe('Put the result on a third layer, so the originals are kept');
+    expect(booleanLayers(s, { ...request('add'), cutter: 5 }).message).toBe('Layer 6 has no polygons');
+    expect(booleanLayers(s, { ...request('add'), object: 12 }).message).toBe('Pick layers between 1 and 10');
+    expect(booleanLayers(s, { ...request('add'), target: -1 }).ok).toBe(false);
+    expect(s.history.canUndo).toBe(false);
+  });
+
+  it('refuses a layer that is not a closed solid, and names it', () => {
+    const s = twoBoxes();
+    s.layers[1]!.polygons.splice(0, 1);
+    expect(booleanLayers(s, request('add')).message).toBe('Layer 2 is not a closed solid: 4 edges are open. Merge Points may close it.');
+    expect(s.history.canUndo).toBe(false);
+  });
+
+  it('reports an empty result instead of adding nothing', () => {
+    const s = new ModelerState();
+    s.layers[0]!.append(solidBox(-1, 1));
+    s.layers[1]!.append(solidBox(5, 7));
+    expect(booleanLayers(s, request('intersect')).message).toBe('The result is empty: the two solids do not overlap');
+    expect(s.layers[2]!.polygons).toHaveLength(0);
   });
 });

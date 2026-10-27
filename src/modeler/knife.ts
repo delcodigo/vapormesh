@@ -1,5 +1,5 @@
 import { faceNormal, type Polygon, type UV, type Vec3 } from '@/core';
-import { clonePolygon, MERGE_TOLERANCE, type Geometry } from './geometry';
+import { clonePolygon, isConvexPolygon, MERGE_TOLERANCE, type Geometry } from './geometry';
 
 /** The points p with dot(normal, p) = offset. `normal` need not be a unit vector. */
 export interface CutPlane {
@@ -42,22 +42,6 @@ export const axisPlane = (axis: 'x' | 'y' | 'z', position: number): CutPlane => 
 });
 
 const lerp = (a: UV, b: UV, t: number): UV => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-
-/** A polygon whose corners all turn the same way. Splitting one of these along a line always gives exactly two pieces. */
-function isConvex(pts: Vec3[]): boolean {
-  if (pts.length <= 3) return true;
-  const n = faceNormal(pts);
-  const length = Math.hypot(...n);
-  if (length === 0) return false;
-  return pts.every((p, i) => {
-    const q = pts[(i + 1) % pts.length]!;
-    const r = pts[(i + 2) % pts.length]!;
-    const e1 = [q[0] - p[0], q[1] - p[1], q[2] - p[2]];
-    const e2 = [r[0] - q[0], r[1] - q[1], r[2] - q[2]];
-    const c = [e1[1]! * e2[2]! - e1[2]! * e2[1]!, e1[2]! * e2[0]! - e1[0]! * e2[2]!, e1[0]! * e2[1]! - e1[1]! * e2[0]!];
-    return c[0]! * n[0] + c[1]! * n[1] + c[2]! * n[2] >= -1e-9 * length;
-  });
-}
 
 interface Piece {
   points: number[];
@@ -137,7 +121,7 @@ export function knife(geo: Geometry, ids: ReadonlySet<number>, plane: CutPlane, 
     const pts = source.points.map((v) => geo.points[v]!);
     if (faceNormal(pts).every((c) => c === 0)) continue; // no area, nothing to cut
     // pieces to cut: the polygon itself, or a fan of triangles if it is concave
-    const parts: Piece[] = isConvex(pts)
+    const parts: Piece[] = isConvexPolygon(pts)
       ? [{ points: source.points, uvs: source.uvs }]
       : source.points.slice(1, -1).map((_, k) => ({
           points: [source.points[0]!, source.points[k + 1]!, source.points[k + 2]!],

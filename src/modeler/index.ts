@@ -16,5 +16,8 @@ export * from './extrudeTool';
 export * from './mirror';
 export * from './knife';
 export * from './knifeTool';
+export * from './triangulate';
+export * from './boolean';
+export * from './cleanup';
 export * from './edit';
 export * from './state';

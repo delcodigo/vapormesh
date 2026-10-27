@@ -1,4 +1,4 @@
-import { Mesh, type Polygon, type UV, type Vec3 } from '@/core';
+import { faceNormal, Mesh, type Polygon, type UV, type Vec3 } from '@/core';
 
 /** Points within this distance are the same point to Merge Points and to Mirror's seam. */
 export const MERGE_TOLERANCE = 0.0001;
@@ -171,4 +171,20 @@ export function extractPolygons(mesh: Mesh, ids: number[]): Mesh {
     out.polygons.push({ ...clonePolygon(p), points: p.points.map((i) => pointMap.get(i)!), surface: surfaceMap.get(p.surface)! });
   }
   return out;
+}
+
+/** A polygon whose corners all turn the same way (points on a straight run are allowed). */
+export function isConvexPolygon(pts: Vec3[]): boolean {
+  if (pts.length <= 3) return true;
+  const n = faceNormal(pts);
+  const length = Math.hypot(...n);
+  if (length === 0) return false;
+  return pts.every((p, i) => {
+    const q = pts[(i + 1) % pts.length]!;
+    const r = pts[(i + 2) % pts.length]!;
+    const e1 = [q[0] - p[0], q[1] - p[1], q[2] - p[2]];
+    const e2 = [r[0] - q[0], r[1] - q[1], r[2] - q[2]];
+    const c = [e1[1]! * e2[2]! - e1[2]! * e2[1]!, e1[2]! * e2[0]! - e1[0]! * e2[2]!, e1[0]! * e2[1]! - e1[1]! * e2[0]!];
+    return c[0]! * n[0] + c[1]! * n[1] + c[2]! * n[2] >= -1e-9 * length;
+  });
 }

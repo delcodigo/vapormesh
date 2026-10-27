@@ -1,4 +1,5 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
+import { booleanMeshes, BooleanError, type BooleanOp } from './boolean';
 import { AddPrimitiveCommand } from './create';
 import { extrude, type ExtrudeDirection } from './extrude';
 import { knife, type CutPlane, type KnifeOptions } from './knife';
@@ -16,7 +17,7 @@ import {
   type Geometry,
 } from './geometry';
 import type { Command } from './history';
-import type { ModelerState } from './state';
+import { LAYER_COUNT, type ModelerState } from './state';
 
 /** What a command tells the person: whether it did something, and one line to show. */
 export interface EditResult {
@@ -283,4 +284,37 @@ export function knifeSelection(state: ModelerState, plane: CutPlane | null, opti
   state.execute(new ReplaceGeometryCommand('Knife', state, result.geometry, { points: result.cutPoints, polygons: [...polygons] }));
   const n = result.split.length;
   return done(`Cut ${plural(n, 'polygon')}${options.separate ? ', sides separated' : ''}${result.repaired ? ` (${plural(result.repaired, 'neighbour')} got an extra point)` : ''}`);
+}
+
+// --- boolean -----------------------------------------------------------------------------------------------------------
+
+export interface BooleanRequest {
+  /** Layer numbers, from 0. */
+  object: number;
+  cutter: number;
+  /** Where the result goes: a third layer. Anything already there is kept; the result is added to it. */
+  target: number;
+  operation: BooleanOp;
+}
+
+/**
+ * Combine the solids on two layers into a third: add them, subtract the cutter from the object, or keep only what they share.
+ * The two source layers are left untouched; the result layer becomes the active one.
+ */
+export function booleanLayers(state: ModelerState, { object, cutter, target, operation }: BooleanRequest): EditResult {
+  const valid = (n: number) => Number.isInteger(n) && n >= 0 && n < LAYER_COUNT;
+  if (![object, cutter, target].every(valid)) return fail('Pick layers between 1 and ' + LAYER_COUNT);
+  if (object === cutter) return fail('Pick two different layers: one for the object and one for the cutter');
+  if (target === object || target === cutter) return fail('Put the result on a third layer, so the originals are kept');
+  let result;
+  try {
+    result = booleanMeshes(state.layers[object]!, state.layers[cutter]!, operation, { object: `Layer ${object + 1}`, cutter: `Layer ${cutter + 1}` });
+  } catch (e) {
+    if (e instanceof BooleanError) return fail(e.message);
+    throw e;
+  }
+  const label = { add: 'Boolean Add', subtract: 'Boolean Subtract', intersect: 'Boolean Intersect' }[operation];
+  state.execute(new AddPrimitiveCommand(state, result, target, label));
+  const verb = { add: `Added layer ${object + 1} and layer ${cutter + 1}`, subtract: `Subtracted layer ${cutter + 1} from layer ${object + 1}`, intersect: `Intersected layer ${object + 1} and layer ${cutter + 1}` }[operation];
+  return done(`${verb}: ${plural(result.polygons.length, 'polygon')} on layer ${target + 1}`);
 }

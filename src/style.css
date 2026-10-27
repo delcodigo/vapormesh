@@ -189,3 +189,6 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
   position: absolute; display: none; pointer-events: none; height: 0; transform-origin: 0 0;
   border-top: 2px dashed var(--cream); box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
 }
+
+.numeric.boolean { right: 8px; top: 40px; width: 232px; }
+.numeric.boolean .numeric-row select { width: 100%; }

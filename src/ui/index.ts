@@ -12,3 +12,4 @@ export * from './download';
 export * from './extrudePanel';
 export * from './mirrorPanel';
 export * from './knifePanel';
+export * from './booleanPanel';
