@@ -7,5 +7,6 @@ export * from './numeric';
 export * from './create';
 export * from './surfaces';
 export * from './uvTools';
+export * from './uvEdit';
 export * from './images';
 export * from './state';

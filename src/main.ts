@@ -22,6 +22,7 @@ import {
   createPrimitivePanel,
   createRenderPanel,
   createSurfacePanel,
+  createUvEditor,
 } from '@/ui';
 import {
   defaultDisplay,
@@ -90,6 +91,7 @@ app.innerHTML = `
       <div class="section">Surface</div>
       <button data-action="surface">Surfaces</button>
       <button data-action="images">Images</button>
+      <button data-action="uv" title="U">UV Editor</button>
       <div class="section">Select</div>
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
@@ -153,9 +155,11 @@ layerButtons.forEach((b, i) => b.addEventListener('click', () => state.setActive
 const workspace = app.querySelector<HTMLElement>('.workspace')!;
 const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surface"]')!;
 const imagesButton = app.querySelector<HTMLButtonElement>('[data-action="images"]')!;
+const uvButton = app.querySelector<HTMLButtonElement>('[data-action="uv"]')!;
 const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
 const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
 const images = createImagesPanel(state, workspace, () => imagesButton.classList.toggle('active', images.isOpen()));
+const uvEditor = createUvEditor(state, workspace, () => uvButton.classList.toggle('active', uvEditor.isOpen()));
 const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
 const message = app.querySelector<HTMLElement>('.message')!;
@@ -197,6 +201,7 @@ const ACTIONS: Record<string, () => void> = {
   numeric: () => numeric.toggle(),
   surface: () => surfaces.toggle(),
   images: () => images.toggle(),
+  uv: () => uvEditor.toggle(),
   render: () => renderSettings.toggle(),
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
@@ -254,6 +259,7 @@ window.addEventListener('keydown', (e) => {
     state.clearSelection();
   } else if (!mod) {
     if (e.key.toLowerCase() === 'n') numeric.toggle();
+    if (e.key.toLowerCase() === 'u') uvEditor.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }
 });
