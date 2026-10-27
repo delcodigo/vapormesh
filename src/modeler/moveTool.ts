@@ -63,12 +63,13 @@ export class MoveTool {
 
   end(): void {
     const [x, y, z] = this.offset;
-    if (x !== 0 || y !== 0 || z !== 0) {
+    if (this.ids.length > 0 && (x !== 0 || y !== 0 || z !== 0)) {
       const { mesh } = this.state;
       const after = this.ids.map((i) => [...mesh.points[i]!] as Vec3);
       this.state.record(new MovePointsCommand(mesh, this.ids, this.before, after));
     }
     this.ids = [];
     this.before = [];
+    this.offset = [0, 0, 0];
   }
 }

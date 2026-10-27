@@ -1,6 +1,15 @@
 import './style.css';
 import { box, ModelerState, MoveTool, type SelectMode, type ToolName } from '@/modeler';
-import { MeshView, pickPoint, pickPolygon, Viewport, type ViewKind } from '@/render';
+import {
+  MeshView,
+  pickPoint,
+  pickPolygon,
+  pointsInRect,
+  polygonsInRect,
+  Viewport,
+  type DragInfo,
+  type ViewKind,
+} from '@/render';
 
 // LightWave Modeler's quad layout: Top / Perspective over Face / Left.
 const VIEWS: [ViewKind, string][] = [
@@ -25,6 +34,10 @@ app.innerHTML = `
     <div class="toolpanel">
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
+      <div class="section">Select</div>
+      <button data-action="all">All</button>
+      <button data-action="invert">Invert</button>
+      <button data-action="none">None</button>
     </div>
     <div class="viewports">
       ${VIEWS.map(([, n]) => `<div class="viewport"><canvas></canvas><span class="label">${n}</span></div>`).join('')}
@@ -51,6 +64,14 @@ toolButtons.forEach((b) =>
     state.setTool(state.activeTool === tool ? null : tool);
   }),
 );
+const ACTIONS: Record<string, () => void> = {
+  all: () => state.selectAll(),
+  invert: () => state.invertSelection(),
+  none: () => state.clearSelection(),
+};
+app.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((b) =>
+  b.addEventListener('click', () => ACTIONS[b.dataset.action!]!()),
+);
 undoButton.addEventListener('click', () => state.undo());
 redoButton.addEventListener('click', () => state.redo());
 
@@ -75,6 +96,12 @@ window.addEventListener('keydown', (e) => {
   } else if (mod && e.key.toLowerCase() === 'y') {
     e.preventDefault();
     state.redo();
+  } else if (mod && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    state.selectAll();
+  } else if (mod && e.key.toLowerCase() === 'i') {
+    e.preventDefault();
+    state.invertSelection();
   } else if (e.key === ' ') {
     e.preventDefault();
     state.clearSelection();
@@ -82,6 +109,14 @@ window.addEventListener('keydown', (e) => {
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }
 });
+
+/** Shift adds to the selection, Ctrl removes from it, otherwise it replaces. */
+function boxSelect(vp: Viewport, i: DragInfo): void {
+  const rect = { x0: i.start.x, y0: i.start.y, x1: i.current.x, y1: i.current.y };
+  const ids =
+    state.mode === 'points' ? pointsInRect(state.mesh, vp, rect) : polygonsInRect(state.mesh, vp, rect);
+  state.applySelection(ids, i.ctrl ? 'remove' : i.shift ? 'add' : 'replace');
+}
 
 const viewports = [...document.querySelectorAll('canvas')].map((c, i) => {
   const vp = new Viewport(c, VIEWS[i]![0]);
@@ -93,9 +128,18 @@ const viewports = [...document.querySelectorAll('canvas')].map((c, i) => {
     state.applyPick(id, e.shiftKey ? 'toggle' : 'replace');
   };
   vp.dragHandler = {
-    begin: (v) => state.activeTool === 'move' && move.begin(v),
-    move: (offset) => move.move(offset),
-    end: () => move.end(),
+    // With no tool active, ortho drags draw a selection box.
+    get rubberBand() {
+      return state.activeTool === null;
+    },
+    begin: (v, e) => (state.activeTool === 'move' ? !e.shiftKey && move.begin(v) : v.isOrtho),
+    move: (i) => {
+      if (state.activeTool === 'move') move.move(i.offset);
+    },
+    end: (i) => (state.activeTool === 'move' ? move.end() : boxSelect(vp, i)),
+    cancel: () => {
+      if (state.activeTool === 'move') move.end();
+    },
   };
   return { vp, view };
 });

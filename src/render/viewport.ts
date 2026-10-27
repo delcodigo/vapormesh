@@ -16,12 +16,27 @@ const ORTHO: Record<OrthoKind, { dir: THREE.Vector3Tuple; up: THREE.Vector3Tuple
 const MIN_GRID_PIXELS = 24;
 const CLICK_SLOP = 4;
 
-/** A tool's claim on left-drags. `offset` is the cumulative world-space movement within the view plane. */
+/** What a drag handler sees: movement in world space and in canvas pixels, plus modifier keys. */
+export interface DragInfo {
+  /** Cumulative world-space movement within the view plane since the press. */
+  offset: Vec3;
+  /** Canvas-relative CSS pixels. */
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+  shift: boolean;
+  ctrl: boolean;
+}
+
+/** A tool's claim on left-drags in a viewport. */
 export interface DragHandler {
+  /** Draw a selection rectangle while dragging. Read once, after `begin` returns true. */
+  readonly rubberBand?: boolean;
   /** Return true to take over the drag (otherwise the viewport navigates). */
-  begin(view: Viewport): boolean;
-  move(offset: Vec3): void;
-  end(): void;
+  begin(view: Viewport, e: PointerEvent): boolean;
+  move(info: DragInfo): void;
+  end(info: DragInfo): void;
+  /** The pointer was cancelled (e.g. focus lost): abandon rather than commit. */
+  cancel(): void;
 }
 
 export class Viewport implements Projector {
@@ -99,6 +114,28 @@ export class Viewport implements Projector {
     return { x: ((v.x + 1) / 2) * this.width, y: ((1 - v.y) / 2) * this.height, z: v.z };
   }
 
+  // --- rubber band -------------------------------------------------------
+
+  private band: HTMLDivElement | null = null;
+
+  private showBand(a: { x: number; y: number }, b: { x: number; y: number }): void {
+    if (!this.band) {
+      this.band = document.createElement('div');
+      this.band.className = 'rubberband';
+      this.canvas.parentElement?.appendChild(this.band);
+    }
+    const { style } = this.band;
+    style.display = 'block';
+    style.left = `${Math.min(a.x, b.x)}px`;
+    style.top = `${Math.min(a.y, b.y)}px`;
+    style.width = `${Math.abs(a.x - b.x)}px`;
+    style.height = `${Math.abs(a.y - b.y)}px`;
+  }
+
+  private hideBand(): void {
+    if (this.band) this.band.style.display = 'none';
+  }
+
   // --- camera -----------------------------------------------------------
 
   private updateCamera(): void {
@@ -169,14 +206,29 @@ export class Viewport implements Projector {
     c.style.touchAction = 'none';
     c.addEventListener('contextmenu', (e) => e.preventDefault());
 
+    const rel = (e: PointerEvent) => {
+      const r = c.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
     let last: { x: number; y: number } | null = null;
     let start = { x: 0, y: 0 };
+    let startRel = { x: 0, y: 0 };
     let button = -1;
     let moved = false;
     let dragging = false;
+    let banding = false;
+    const info = (e: PointerEvent): DragInfo => ({
+      offset: this.screenToWorld(e.clientX - start.x, e.clientY - start.y),
+      start: startRel,
+      current: rel(e),
+      shift: e.shiftKey,
+      ctrl: e.ctrlKey || e.metaKey,
+    });
+
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
       last = start = { x: e.clientX, y: e.clientY };
+      startRel = rel(e);
       button = e.button;
       moved = false;
       dragging = false;
@@ -187,10 +239,13 @@ export class Viewport implements Projector {
       if (!moved) {
         if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < CLICK_SLOP) return;
         moved = true;
-        dragging = button === 0 && !e.shiftKey && (this.dragHandler?.begin(this) ?? false);
+        dragging = button === 0 && (this.dragHandler?.begin(this, e) ?? false);
+        banding = dragging && !!this.dragHandler?.rubberBand;
       }
       if (dragging) {
-        this.dragHandler!.move(this.screenToWorld(e.clientX - start.x, e.clientY - start.y));
+        const i = info(e);
+        if (banding) this.showBand(i.start, i.current);
+        this.dragHandler!.move(i);
         return;
       }
       const dx = e.clientX - last.x;
@@ -200,21 +255,22 @@ export class Viewport implements Projector {
       if (panning) this.pan(dx, dy);
       else if (button === 0 && this.kind === 'perspective') this.orbit(dx, dy);
     });
-    const release = (e: PointerEvent) => {
-      if (dragging) this.dragHandler?.end();
-      dragging = false;
+    const stop = (e: PointerEvent, commit: boolean) => {
+      if (dragging) {
+        if (commit) this.dragHandler?.end(info(e));
+        else this.dragHandler?.cancel();
+      }
+      dragging = banding = false;
+      this.hideBand();
       last = null;
       if (c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
     };
     c.addEventListener('pointerup', (e) => {
       const click = last !== null && !moved && button === 0;
-      release(e);
-      if (click) {
-        const r = c.getBoundingClientRect();
-        this.onClick?.(e.clientX - r.left, e.clientY - r.top, e);
-      }
+      stop(e, true);
+      if (click) this.onClick?.(rel(e).x, rel(e).y, e);
     });
-    c.addEventListener('pointercancel', release);
+    c.addEventListener('pointercancel', (e) => stop(e, false));
 
     c.addEventListener(
       'wheel',

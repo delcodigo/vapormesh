@@ -62,3 +62,7 @@ button:active:not(:disabled) { border-color: var(--lo) var(--hi) var(--hi) var(-
 button:disabled { color: #8a74bd; cursor: default; }
 button.active { background: var(--pink); border-color: var(--lo) var(--hi) var(--hi) var(--lo); font-weight: bold; }
 .toolpanel button { display: block; width: 100%; margin-bottom: 3px; }
+.rubberband {
+  position: absolute; display: none; pointer-events: none; box-sizing: border-box;
+  border: 1px dashed var(--cream); background: rgba(255, 251, 150, 0.12);
+}

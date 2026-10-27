@@ -57,3 +57,37 @@ export function pickPolygon(mesh: Mesh, proj: Projector, x: number, y: number): 
   });
   return best;
 }
+
+/** Axis-aligned screen rectangle in CSS pixels; corners may be given in any order. */
+export interface ScreenRect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+const inRect = (r: ScreenRect, x: number, y: number) =>
+  x >= Math.min(r.x0, r.x1) && x <= Math.max(r.x0, r.x1) && y >= Math.min(r.y0, r.y1) && y <= Math.max(r.y0, r.y1);
+
+/** Every point whose projection falls inside the rectangle. */
+export function pointsInRect(mesh: Mesh, proj: Projector, rect: ScreenRect): number[] {
+  const ids: number[] = [];
+  mesh.points.forEach((p, i) => {
+    const s = proj.project(p);
+    if (visible(s) && inRect(rect, s.x, s.y)) ids.push(i);
+  });
+  return ids;
+}
+
+/** Every polygon whose projected centre falls inside the rectangle. */
+export function polygonsInRect(mesh: Mesh, proj: Projector, rect: ScreenRect): number[] {
+  const ids: number[] = [];
+  mesh.polygons.forEach((poly, i) => {
+    const pts = poly.points.map((idx) => proj.project(mesh.points[idx]!));
+    if (pts.length === 0 || !pts.every(visible)) return;
+    const cx = pts.reduce((sum, s) => sum + s.x, 0) / pts.length;
+    const cy = pts.reduce((sum, s) => sum + s.y, 0) / pts.length;
+    if (inRect(rect, cx, cy)) ids.push(i);
+  });
+  return ids;
+}

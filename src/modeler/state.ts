@@ -3,6 +3,7 @@ import { History, type Command } from './history';
 
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';
+export type SelectionOp = 'replace' | 'add' | 'remove';
 export type ToolName = 'move';
 
 /** Owns the mesh being modeled and the current selection. Tools mutate through this and call `changed()`. */
@@ -85,6 +86,31 @@ export class ModelerState {
       if (!sel.delete(id)) sel.add(id);
     }
     this.changed();
+  }
+
+  /** Apply a set of ids (e.g. from a box select) to the current mode's selection. */
+  applySelection(ids: Iterable<number>, op: SelectionOp): void {
+    const sel = this.selection;
+    if (op === 'replace') sel.clear();
+    for (const id of ids) {
+      if (op === 'remove') sel.delete(id);
+      else sel.add(id);
+    }
+    this.changed();
+  }
+
+  private get selectableCount(): number {
+    return this.mode === 'points' ? this.mesh.points.length : this.mesh.polygons.length;
+  }
+
+  selectAll(): void {
+    this.applySelection(Array.from({ length: this.selectableCount }, (_, i) => i), 'replace');
+  }
+
+  invertSelection(): void {
+    const sel = this.selection;
+    const inverted = Array.from({ length: this.selectableCount }, (_, i) => i).filter((i) => !sel.has(i));
+    this.applySelection(inverted, 'replace');
   }
 
   clearSelection(): void {
