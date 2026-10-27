@@ -6,3 +6,5 @@ export * from './palette';
 export * from './image';
 export * from './uv';
 export * from './quantize';
+export * from './paletteFormats';
+export * from './paletteGen';

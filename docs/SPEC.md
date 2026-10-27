@@ -64,11 +64,21 @@ survives: **automatic texture coordinates at a fixed texel density** (box projec
 
 ## Order (proposed)
 
-1. Palette, indexed images, per-corner UVs and surface textures, rendered palette-mapped (file format v2).
-2. PNG import (to the project palette), so there are textures to test with.
-3. UV editor.
-4. Texture editor.
-5. glTF export, so assets can be tried in Unity early.
-6. Layout: camera, lights, keyframes, then video and PNG export.
-7. Animator.
-8. Tracker, any time.
+Done: palette and indexed images with per-corner UVs and surface textures (file format v2), PNG import, the UV
+editor, the palette editor.
+
+Next, until the Modeler can build a prop or a character:
+
+1. Core editing: delete, merge points, flip, make polygon, cut/copy/paste.
+2. Extrude and bevel, then mirror.
+3. Knife and boolean.
+4. The deformers: stretch, drag, magnet, bend, twist, taper.
+5. Selection and display: select connected, grow/shrink, lasso, grid snapping, hide/unhide.
+
+Then:
+
+6. Texture editor: pixel painting on indexed images (the palette editor is already done).
+7. glTF export, so assets can be tried in Unity early.
+8. Layout: camera, lights, keyframes, then video and PNG export.
+9. Animator.
+10. Tracker, any time.

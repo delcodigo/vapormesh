@@ -7,3 +7,5 @@ export * from './fileActions';
 export * from './imagesPanel';
 export * from './paletteView';
 export * from './uvEditor';
+export * from './paletteEditor';
+export * from './download';

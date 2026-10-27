@@ -6,6 +6,8 @@ import { RETRO_PRESETS, type RetroOptions } from '@/render';
 export interface RenderPanel {
   toggle(): void;
   isOpen(): boolean;
+  /** Repaint the palette preview after the project palette changed. */
+  refresh(): void;
 }
 
 type NumericKey = Exclude<keyof RetroOptions, 'usePalette'>;
@@ -85,5 +87,5 @@ export function createRenderPanel(
     onToggle();
   }
 
-  return { toggle, isOpen: () => !el.hidden };
+  return { toggle, isOpen: () => !el.hidden, refresh: () => !el.hidden && paintPalette(swatches, getPalette(), SWATCH) };
 }

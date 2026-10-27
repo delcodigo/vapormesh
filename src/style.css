@@ -162,3 +162,8 @@ canvas.palette.pick { cursor: crosshair; margin: 2px 0 4px; }
 canvas.uv-canvas { display: block; width: 400px; height: 400px; border: 2px solid var(--lo); background: var(--night); cursor: crosshair; touch-action: none; outline: none; }
 canvas.uv-canvas:focus { border-color: var(--cyan); }
 .uv-status { margin: 3px 0 0; font: 11px 'Courier New', monospace; color: var(--ink); min-height: 14px; }
+
+/* palette editor */
+.numeric.palette-editor { left: 560px; top: 8px; width: 250px; }
+.pal-info { margin: 3px 0; font: 11px 'Courier New', monospace; color: var(--ink); min-height: 14px; }
+.numeric .numeric-row input[type='text'] + button { margin-left: 4px; flex: none; }

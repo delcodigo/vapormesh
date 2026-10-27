@@ -9,4 +9,5 @@ export * from './surfaces';
 export * from './uvTools';
 export * from './uvEdit';
 export * from './images';
+export * from './palette';
 export * from './state';

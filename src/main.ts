@@ -19,6 +19,7 @@ import {
   createImagesPanel,
   type EditorBridge,
   createNumericPanel,
+  createPaletteEditor,
   createPrimitivePanel,
   createRenderPanel,
   createSurfacePanel,
@@ -92,6 +93,7 @@ app.innerHTML = `
       <button data-action="surface">Surfaces</button>
       <button data-action="images">Images</button>
       <button data-action="uv" title="U">UV Editor</button>
+      <button data-action="palette">Palette</button>
       <div class="section">Select</div>
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
@@ -156,10 +158,12 @@ const workspace = app.querySelector<HTMLElement>('.workspace')!;
 const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surface"]')!;
 const imagesButton = app.querySelector<HTMLButtonElement>('[data-action="images"]')!;
 const uvButton = app.querySelector<HTMLButtonElement>('[data-action="uv"]')!;
+const paletteButton = app.querySelector<HTMLButtonElement>('[data-action="palette"]')!;
 const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
 const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
 const images = createImagesPanel(state, workspace, () => imagesButton.classList.toggle('active', images.isOpen()));
 const uvEditor = createUvEditor(state, workspace, () => uvButton.classList.toggle('active', uvEditor.isOpen()));
+const paletteEditor = createPaletteEditor(state, workspace, () => paletteButton.classList.toggle('active', paletteEditor.isOpen()));
 const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
 const message = app.querySelector<HTMLElement>('.message')!;
@@ -194,6 +198,8 @@ window.addEventListener('beforeunload', (e) => {
   if (files.isDirty()) e.preventDefault(); // makes the browser ask before closing with unsaved work
 });
 
+state.subscribe(() => renderSettings.refresh()); // the Retro panel shows the palette, which can change
+
 const ACTIONS: Record<string, () => void> = {
   new: () => files.newProject(),
   load: () => files.load(),
@@ -202,6 +208,7 @@ const ACTIONS: Record<string, () => void> = {
   surface: () => surfaces.toggle(),
   images: () => images.toggle(),
   uv: () => uvEditor.toggle(),
+  palette: () => paletteEditor.toggle(),
   render: () => renderSettings.toggle(),
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),

@@ -37,7 +37,7 @@ export function paintImage(canvas: HTMLCanvasElement, image: IndexedImage, palet
 }
 
 /** Read any picture the browser can decode into RGBA, within sane limits. */
-async function decodeImageFile(file: File): Promise<RgbaImage> {
+export async function decodeImageFile(file: File): Promise<RgbaImage> {
   if (file.size > MAX_SOURCE_BYTES) throw new Error('That file is too large (the limit is 32 MB)');
   let bitmap: ImageBitmap;
   try {

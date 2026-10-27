@@ -1,6 +1,7 @@
 import { decodeProject, encodeProject, ProjectFormatError, type EditorState } from '@/io';
 import type { ModelerState } from '@/modeler';
 import type { DisplaySettings } from '@/render';
+import { downloadBlob } from './download';
 
 const EXTENSION = '.vmesh';
 
@@ -56,12 +57,7 @@ export function createFileActions(
       images: state.images,
       editor: editor.capture(),
     });
-    const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(fileName, data);
     savedRevision = state.history.revision;
     notify(`Saved ${fileName} (${(data.byteLength / 1024).toFixed(1)} KB)`);
   };
