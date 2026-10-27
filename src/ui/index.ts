@@ -14,6 +14,7 @@ export * from './extrudePanel';
 export * from './positionPanel';
 export * from './arrayPanel';
 export * from './lathePanel';
+export * from './menus';
 export * from './mirrorPanel';
 export * from './knifePanel';
 export * from './booleanPanel';

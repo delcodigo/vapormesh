@@ -41,6 +41,7 @@ import {
   createArrayPanel,
   createExtrudePanel,
   createLathePanel,
+  setupMenus,
   createPositionPanel,
   createBooleanPanel,
   createFileActions,
@@ -165,7 +166,14 @@ const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : n
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
-  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="filebtns"><button data-action="new">New</button><button data-action="load" title="Ctrl+O">Load</button><button data-action="save" title="Ctrl+S">Save</button></span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
+  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menuwrap">
+      <button class="menutitle" data-menu="file" aria-haspopup="menu" aria-expanded="false">File</button>
+      <div class="dropdown" role="menu" hidden>
+        <button role="menuitem" data-action="new"><span>New</span></button>
+        <button role="menuitem" data-action="load"><span>Load…</span><kbd>Ctrl+O</kbd></button>
+        <button role="menuitem" data-action="save"><span>Save…</span><kbd>Ctrl+S</kbd></button>
+      </div>
+    </span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
   <div class="workspace">
     <div class="toolpanel">
       <div class="quick">
@@ -291,6 +299,7 @@ toolButtons.forEach((b) =>
     state.setTool(state.activeTool === tool ? null : tool);
   }),
 );
+setupMenus(app.querySelector<HTMLElement>('.menubar')!);
 const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
 deformPanel = createDeformPanel(state, app.querySelector('.workspace')!);
 lathePanel = createLathePanel(state, app.querySelector('.workspace')!);

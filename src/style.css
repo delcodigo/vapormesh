@@ -26,7 +26,7 @@ html, body, #app { margin: 0; height: 100%; background: var(--bg); color: var(--
 .menubar .logo { font-weight: bold; font-size: 14px; letter-spacing: 1px; color: var(--night); text-shadow: 1px 1px 0 var(--hi); }
 .menubar .jp { font-size: 10px; color: var(--night); opacity: 0.7; }
 .menubar .menu { color: var(--night); font-weight: bold; }
-.menubar .menu:first-of-type { margin-left: 16px; }
+.menubar .menu:first-of-type { margin-left: 0; }
 
 .bottombar { display: flex; gap: 4px; align-items: center; padding: 3px 6px; background: var(--panel); border-top: 2px solid var(--hi); }
 .bottombar .spacer { flex: 1; }
@@ -223,5 +223,28 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .toolpanel .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 4px; }
 .toolpanel .tabs button { margin: 0; padding: 1px 0; font-size: 11px; }
 .toolpanel .tabpage[hidden] { display: none; }
-.menubar .filebtns { display: inline-flex; gap: 2px; margin-left: 12px; align-self: center; }
-.menubar .filebtns button { padding: 0 8px; font-size: 11px; }
+
+/* the File menu: a dropdown in the vaporwave panel style */
+.menubar { position: relative; z-index: 60; }
+.menuwrap { position: relative; align-self: center; margin-left: 12px; }
+.menubar .menutitle {
+  padding: 0 10px; font-weight: bold; color: var(--night); background: transparent; border: 2px solid transparent;
+}
+.menubar .menutitle:hover:not(:disabled) { background: rgba(255, 255, 255, 0.35); border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+.menubar .menutitle.open { background: var(--panel); border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+.dropdown {
+  position: absolute; left: 0; top: calc(100% + 1px); min-width: 190px; padding: 0 2px 3px; box-sizing: border-box;
+  background: var(--panel); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+  box-shadow: 4px 4px 0 var(--night), 0 0 18px rgba(1, 205, 254, 0.45);
+}
+.dropdown[hidden] { display: none; }
+.dropdown::before { content: ''; display: block; height: 4px; margin: 0 -2px 3px; background: linear-gradient(90deg, var(--pink), var(--purple), var(--cyan)); }
+.dropdown button[role='menuitem'] {
+  display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 24px;
+  padding: 3px 8px; text-align: left; background: transparent; border: 0; color: var(--ink);
+}
+.dropdown button[role='menuitem']:hover, .dropdown button[role='menuitem']:focus-visible {
+  outline: none; color: var(--night); background: linear-gradient(90deg, var(--pink), var(--purple));
+}
+.dropdown kbd { font: 11px 'Courier New', monospace; color: var(--lo); }
+.dropdown button[role='menuitem']:hover kbd, .dropdown button[role='menuitem']:focus-visible kbd { color: var(--night); }

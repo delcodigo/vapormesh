@@ -39,7 +39,7 @@ groups the rest in tabs, one at a time:
 To **lathe**, click the profile points in order along the outline (Point mode, bottom to top), choose Lathe, then drag in a
 view to place the axis: the shape follows the pointer. The options set the axis direction, the sides and the angle.
 
-New, Load and Save are in the menu bar. Choosing a tool with its key shows its tab, and the last tab is remembered.
+New, Load and Save are in the **File** menu in the menu bar (`Ctrl+O` and `Ctrl+S` still work). Choosing a tool with its key shows its tab, and the last tab is remembered.
 
 ## Keys
 
