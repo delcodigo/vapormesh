@@ -3,6 +3,7 @@ import type { Vec3 } from '@/core';
 import { THEME } from '@/theme';
 import type { Projector, ScreenPoint } from './pick';
 import type { DisplaySettings } from './retro';
+import { DEFAULT_VIEW, normalizeView, relevantView, VIEW_LIMITS, type ViewState } from './viewState';
 import { RetroPass } from './retroPass';
 
 export type ViewKind = 'perspective' | 'top' | 'face' | 'left';
@@ -56,13 +57,13 @@ export class Viewport implements Projector {
   readonly camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
   /** Point the view is centered on (pan target / orbit pivot). */
-  private target = new THREE.Vector3();
+  private target = new THREE.Vector3(...DEFAULT_VIEW.target);
   /** World units visible vertically in orthographic views. */
-  private orthoSize = 4;
+  private orthoSize = DEFAULT_VIEW.orthoSize;
   /** Perspective orbit state. */
-  private radius = 6;
-  private theta = Math.atan2(3, 4);
-  private phi = 1.0; // polar angle from +Y
+  private radius = DEFAULT_VIEW.radius;
+  private theta = DEFAULT_VIEW.theta;
+  private phi = DEFAULT_VIEW.phi; // polar angle from +Y
 
   private grid: THREE.LineSegments | null = null;
   private dirty = true;
@@ -141,6 +142,35 @@ export class Viewport implements Projector {
     return { x: ((v.x + 1) / 2) * this.width, y: ((1 - v.y) / 2) * this.height, z: v.z };
   }
 
+  // --- saved camera ---------------------------------------------------------
+
+  /** The camera as saved in a project: pan, zoom and (for Perspective) orbit. */
+  getView(): ViewState {
+    const { x, y, z } = this.target;
+    return relevantView(this.kind, {
+      target: [x, y, z],
+      orthoSize: this.orthoSize,
+      radius: this.radius,
+      theta: this.theta,
+      phi: this.phi,
+    });
+  }
+
+  /** Restore a camera. Missing or out-of-range values fall back to the defaults or are clamped. */
+  setView(view: Partial<ViewState>): void {
+    const v = normalizeView(view);
+    this.target.set(...v.target);
+    this.orthoSize = v.orthoSize;
+    this.radius = v.radius;
+    this.theta = v.theta;
+    this.phi = v.phi;
+    this.dirty = true;
+  }
+
+  resetView(): void {
+    this.setView({});
+  }
+
   // --- rubber band -------------------------------------------------------
 
   private band: HTMLDivElement | null = null;
@@ -207,17 +237,17 @@ export class Viewport implements Projector {
 
   private orbit(dxPx: number, dyPx: number): void {
     this.theta -= dxPx * 0.008;
-    this.phi = THREE.MathUtils.clamp(this.phi - dyPx * 0.008, 0.05, Math.PI - 0.05);
+    this.phi = THREE.MathUtils.clamp(this.phi - dyPx * 0.008, ...VIEW_LIMITS.phi);
     this.dirty = true;
   }
 
   private zoom(deltaY: number, ndcX: number, ndcY: number): void {
     const factor = Math.exp(deltaY * 0.0015);
     if (this.camera instanceof THREE.PerspectiveCamera) {
-      this.radius = THREE.MathUtils.clamp(this.radius * factor, 0.2, 500);
+      this.radius = THREE.MathUtils.clamp(this.radius * factor, ...VIEW_LIMITS.radius);
     } else {
       const old = this.orthoSize;
-      this.orthoSize = THREE.MathUtils.clamp(old * factor, 0.01, 100000);
+      this.orthoSize = THREE.MathUtils.clamp(old * factor, ...VIEW_LIMITS.orthoSize);
       // Keep the world point under the cursor fixed.
       const aspect = this.width / Math.max(this.height, 1);
       const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);

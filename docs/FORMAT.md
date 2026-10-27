@@ -32,9 +32,21 @@ The file length must equal `16 + J + B` exactly. The JSON chunk is plain text, s
     }
   ],
   "display": { "mode": "wire" | "shaded" | "shaded-wire",
-               "retro": { "resolutionHeight": 240, "colorLevels": 32, "dither": 1 } }
+               "retro": { "resolutionHeight": 240, "colorLevels": 32, "dither": 1 } },
+  "editor": {                      // optional: how the editor was set up. Cosmetic, never fatal
+    "selectMode": "points" | "polygons",
+    "customPivot": [x, y, z] | null,
+    "views": {                     // any subset of: perspective, top, face, left
+      "perspective": { "target": [x,y,z], "radius": 6, "theta": 0.64, "phi": 1.0 },
+      "top":         { "target": [x,y,z], "orthoSize": 4 }
+    }
+  }
 }
 ```
+
+`target` is the point a view is centred on. Orthographic views save `orthoSize` (world units visible
+vertically); the Perspective view saves its orbit as `radius`, `theta` (azimuth) and `phi` (polar angle
+from +Y), in radians. Selection and panel positions are not saved.
 
 Readers fill in defaults for surface or display fields they don't find and ignore ones they don't
 know, so adding a field does not need a new format version.

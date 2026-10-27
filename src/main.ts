@@ -15,6 +15,7 @@ import {
 } from '@/modeler';
 import {
   createFileActions,
+  type EditorBridge,
   createNumericPanel,
   createPrimitivePanel,
   createRenderPanel,
@@ -158,7 +159,26 @@ const notify = (text: string, isError = false) => {
   clearTimeout(messageTimer);
   messageTimer = window.setTimeout(() => (message.textContent = ''), isError ? 8000 : 3500);
 };
-const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, notify, showViewMode);
+const editorBridge: EditorBridge = {
+  capture: () => ({
+    selectMode: state.mode,
+    customPivot: state.customPivot,
+    views: Object.fromEntries(viewports.map(({ vp }) => [vp.kind, vp.getView()])),
+  }),
+  apply: (e) => {
+    state.setMode(e.selectMode);
+    state.setPivot(e.customPivot);
+    for (const { vp } of viewports) {
+      const view = e.views[vp.kind];
+      if (view) vp.setView(view);
+    }
+  },
+  reset: () => {
+    state.setPivot(null);
+    for (const { vp } of viewports) vp.resetView();
+  },
+};
+const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, editorBridge, notify, showViewMode);
 window.addEventListener('beforeunload', (e) => {
   if (files.isDirty()) e.preventDefault(); // makes the browser ask before closing with unsaved work
 });

@@ -1,6 +1,8 @@
 import { defaultSurface, Mesh, type Surface, type Vec3 } from '@/core';
-import { LAYER_COUNT } from '@/modeler';
+import { LAYER_COUNT, type SelectMode } from '@/modeler';
 import { defaultRetro, type DisplaySettings, type RetroOptions, type ViewMode } from '@/render/retro';
+import type { ViewState } from '@/render/viewState';
+import type { ViewKind } from '@/render/viewport';
 
 /**
  * .vmesh project file: a small header, a JSON chunk for everything structured, then a binary chunk for the
@@ -11,11 +13,23 @@ const MAGIC = [0x56, 0x4d, 0x53, 0x48]; // "VMSH"
 const HEADER_BYTES = 16; // magic, version, json length, binary length
 const VIEW_MODES: ViewMode[] = ['wire', 'shaded', 'shaded-wire'];
 
+/** Everything about how the editor looks and is set up, as opposed to the model itself. */
+export interface EditorState {
+  selectMode: SelectMode;
+  customPivot: Vec3 | null;
+  /** Camera of each viewport, by kind. Missing views keep whatever they have. */
+  views: Partial<Record<ViewKind, ViewState>>;
+}
+
 export interface ProjectData {
   layers: Mesh[];
   activeLayer: number;
   display: DisplaySettings;
+  /** Absent in files written before the editor state was saved. */
+  editor?: EditorState;
 }
+
+const VIEW_KINDS: ViewKind[] = ['perspective', 'top', 'face', 'left'];
 
 export class ProjectFormatError extends Error {}
 
@@ -30,7 +44,7 @@ interface LayerHeader {
 /** Bytes a layer occupies in the binary chunk: float64 xyz per point, then per polygon surface, length, and its indices. */
 const binarySize = (h: LayerHeader) => h.points * 24 + h.polygons * 8 + h.indices * 4;
 
-export function encodeProject({ layers, activeLayer, display }: ProjectData): ArrayBuffer {
+export function encodeProject({ layers, activeLayer, display, editor }: ProjectData): ArrayBuffer {
   const headers: LayerHeader[] = layers.map((m) => ({
     surfaces: m.surfaces,
     points: m.points.length,
@@ -38,7 +52,7 @@ export function encodeProject({ layers, activeLayer, display }: ProjectData): Ar
     indices: m.polygons.reduce((n, p) => n + p.points.length, 0),
   }));
   const json = new TextEncoder().encode(
-    JSON.stringify({ app: 'VaporMesh', activeLayer, layers: headers, display: { mode: display.mode, retro: display.retro } }),
+    JSON.stringify({ app: 'VaporMesh', activeLayer, layers: headers, display: { mode: display.mode, retro: display.retro }, editor }),
   );
   const binLength = headers.reduce((n, h) => n + binarySize(h), 0);
 
@@ -105,6 +119,31 @@ function parseDisplay(raw: unknown): DisplaySettings {
     dither: clamp(num(r.dither, defaultRetro.dither), 0, 1),
   };
   return { mode: VIEW_MODES.includes(d.mode as ViewMode) ? (d.mode as ViewMode) : 'wire', retro };
+}
+
+const finiteVec3 = (v: unknown): Vec3 | null =>
+  Array.isArray(v) && v.length === 3 && v.every((c) => typeof c === 'number' && Number.isFinite(c)) ? (v as Vec3) : null;
+
+/** Read the editor block leniently: bad pieces are dropped, never fatal, since this is only cosmetic state. */
+function parseEditor(raw: unknown): EditorState | undefined {
+  if (!isObject(raw)) return undefined;
+  const views: EditorState['views'] = {};
+  const rawViews = isObject(raw.views) ? raw.views : {};
+  for (const kind of VIEW_KINDS) {
+    const v = rawViews[kind];
+    const target = isObject(v) ? finiteVec3(v.target) : null;
+    if (!isObject(v) || !target) continue;
+    const view: ViewState = { target };
+    for (const key of ['orthoSize', 'radius', 'theta', 'phi'] as const) {
+      if (typeof v[key] === 'number' && Number.isFinite(v[key])) view[key] = v[key] as number;
+    }
+    views[kind] = view;
+  }
+  return {
+    selectMode: raw.selectMode === 'polygons' ? 'polygons' : 'points',
+    customPivot: finiteVec3(raw.customPivot),
+    views,
+  };
 }
 
 /** Parse and validate a .vmesh file. Throws ProjectFormatError, never partially returns a bad model. */
@@ -174,5 +213,10 @@ export function decodeProject(buffer: ArrayBuffer): ProjectData {
   });
 
   const active = Math.round(num(manifest.activeLayer, 0));
-  return { layers, activeLayer: clamp(active, 0, LAYER_COUNT - 1), display: parseDisplay(manifest.display) };
+  return {
+    layers,
+    activeLayer: clamp(active, 0, LAYER_COUNT - 1),
+    display: parseDisplay(manifest.display),
+    editor: parseEditor(manifest.editor),
+  };
 }

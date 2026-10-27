@@ -1,8 +1,16 @@
-import { decodeProject, encodeProject, ProjectFormatError } from '@/io';
+import { decodeProject, encodeProject, ProjectFormatError, type EditorState } from '@/io';
 import type { ModelerState } from '@/modeler';
 import type { DisplaySettings } from '@/render';
 
 const EXTENSION = '.vmesh';
+
+/** How the file actions reach the parts of the editor that aren't the model: the viewport cameras and so on. */
+export interface EditorBridge {
+  capture(): EditorState;
+  apply(editor: EditorState): void;
+  /** Back to the defaults, for a new project. */
+  reset(): void;
+}
 
 export interface FileActions {
   newProject(): void;
@@ -20,6 +28,7 @@ export function createFileActions(
   state: ModelerState,
   display: DisplaySettings,
   input: HTMLInputElement,
+  editor: EditorBridge,
   notify: (message: string, isError?: boolean) => void,
   onLoaded: () => void,
 ): FileActions {
@@ -32,13 +41,14 @@ export function createFileActions(
   const newProject = () => {
     if (!confirmDiscard()) return;
     state.loadLayers([], 0);
+    editor.reset();
     fileName = `untitled${EXTENSION}`;
     savedRevision = state.history.revision;
     notify('New project');
   };
 
   const save = () => {
-    const data = encodeProject({ layers: state.layers, activeLayer: state.activeLayer, display });
+    const data = encodeProject({ layers: state.layers, activeLayer: state.activeLayer, display, editor: editor.capture() });
     const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
     const link = document.createElement('a');
     link.href = url;
@@ -62,6 +72,7 @@ export function createFileActions(
       state.loadLayers(project.layers, project.activeLayer);
       display.mode = project.display.mode;
       Object.assign(display.retro, project.display.retro);
+      if (project.editor) editor.apply(project.editor);
       fileName = file.name.toLowerCase().endsWith(EXTENSION) ? file.name : file.name + EXTENSION;
       savedRevision = state.history.revision;
       onLoaded();

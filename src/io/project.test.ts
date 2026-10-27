@@ -12,7 +12,15 @@ function sample(): ProjectData {
   const display = defaultDisplay();
   display.mode = 'shaded-wire';
   display.retro = { resolutionHeight: 180, colorLevels: 24, dither: 0.5 };
-  return { layers: [box, ball], activeLayer: 1, display };
+  const editor = {
+    selectMode: 'polygons' as const,
+    customPivot: [1, 2, 3] as [number, number, number],
+    views: {
+      perspective: { target: [0.5, 0, -1] as [number, number, number], radius: 9, theta: 2.5, phi: 0.7 },
+      top: { target: [3, 0, 4] as [number, number, number], orthoSize: 12.5 },
+    },
+  };
+  return { layers: [box, ball], activeLayer: 1, display, editor };
 }
 
 /** Rewrite the 4 header words so tampering tests don't trip the size check first. */
@@ -28,6 +36,7 @@ describe('project file', () => {
     const back = decodeProject(encodeProject(original));
     expect(back.activeLayer).toBe(1);
     expect(back.display).toEqual(original.display);
+    expect(back.editor).toEqual(original.editor);
     expect(back.layers).toHaveLength(2);
     back.layers.forEach((m, i) => {
       expect(m.points).toEqual(original.layers[i]!.points); // float64: bit-exact
@@ -103,6 +112,32 @@ describe('project file', () => {
     const json = JSON.stringify({ points: ball.points, polygons: ball.polygons, surfaces: ball.surfaces }).length;
     const binary = encodeProject({ layers: [ball], activeLayer: 0, display: defaultDisplay() }).byteLength;
     expect(binary).toBeLessThan(json * 0.55);
+  });
+});
+
+describe('editor state in the file', () => {
+  it('is optional: files without it load, and report no editor state', () => {
+    const { editor: _omitted, ...rest } = sample();
+    expect(decodeProject(encodeProject(rest)).editor).toBeUndefined();
+  });
+
+  it('drops bad pieces without failing the load', () => {
+    const data = sample();
+    data.editor = {
+      selectMode: 'sideways' as never,
+      customPivot: [NaN, 0, 0],
+      views: {
+        top: { target: [1, 2] as never, orthoSize: 5 }, // wrong shape: whole view dropped
+        face: { target: [1, 2, 3], orthoSize: NaN }, // bad field dropped, view kept
+        left: { target: [0, 0, 0], orthoSize: 7 },
+      },
+    };
+    const back = decodeProject(encodeProject(data)).editor!;
+    expect(back.selectMode).toBe('points');
+    expect(back.customPivot).toBeNull();
+    expect(back.views.top).toBeUndefined();
+    expect(back.views.face).toEqual({ target: [1, 2, 3] });
+    expect(back.views.left).toEqual({ target: [0, 0, 0], orthoSize: 7 });
   });
 });
 
