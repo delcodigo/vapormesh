@@ -3,7 +3,8 @@ import type { Vec3 } from './math';
 /** A named material, LightWave-style "surface" (assigned per polygon). */
 export interface Surface {
   name: string;
-  color: Vec3; // 0..1
+  /** Base colour: an index into the project palette, so editing the palette recolours every surface that uses it. */
+  colorIndex: number;
   diffuse: number;
   luminosity: number;
   specular: number;
@@ -21,7 +22,7 @@ export interface Surface {
 export function defaultSurface(name = 'Default'): Surface {
   return {
     name,
-    color: [0.8, 0.8, 0.8],
+    colorIndex: 12, // a light grey in the default palette
     diffuse: 1,
     luminosity: 0,
     specular: 0,
@@ -78,7 +79,7 @@ export class Mesh {
     const surfaceMap = other.surfaces.map((surface) => {
       const existing = this.surfaces.findIndex((s) => s.name === surface.name);
       if (existing >= 0) return existing;
-      this.surfaces.push({ ...surface, color: [...surface.color] });
+      this.surfaces.push({ ...surface });
       return this.surfaces.length - 1;
     });
     const base = this.points.length;

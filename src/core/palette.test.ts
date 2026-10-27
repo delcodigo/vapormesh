@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPaletteLut, defaultPalette, nearestIndex, paletteColor, PALETTE_SIZE } from './palette';
+import { buildPaletteLut, defaultPalette, nearestIndex, paletteColor, paletteColor01, PALETTE_SIZE } from './palette';
 
 describe('defaultPalette', () => {
   const p = defaultPalette();
@@ -13,9 +13,12 @@ describe('defaultPalette', () => {
     }
   });
 
-  it('starts at black and the grey ramp ends at white', () => {
-    expect(paletteColor(p, 0).every((c) => c < 25)).toBe(true);
-    expect(paletteColor(p, 15).every((c) => c > 200)).toBe(true);
+  it('has true black at index 0 and true white at index 15, with an even grey scale between', () => {
+    expect(paletteColor(p, 0)).toEqual([0, 0, 0]);
+    expect(paletteColor(p, 15)).toEqual([255, 255, 255]);
+    expect(paletteColor(p, 12)).toEqual([204, 204, 204]); // the default surface colour, the old 0.8 grey
+    expect(nearestIndex(p, 0, 0, 0)).toBe(0);
+    expect(nearestIndex(p, 255, 255, 255)).toBe(15);
   });
 
   it('is a fresh copy each time, so editing one cannot change another', () => {
@@ -46,5 +49,13 @@ describe('nearestIndex and the lookup table', () => {
       expect([lut[o], lut[o + 1], lut[o + 2]]).toEqual(expected);
       expect(lut[o + 3]).toBe(255);
     }
+  });
+});
+
+describe('paletteColor01', () => {
+  it('gives an entry as 0..1 floats', () => {
+    const p = new Uint8Array(PALETTE_SIZE * 3);
+    p.set([255, 128, 0], 9);
+    expect(paletteColor01(p, 3)).toEqual([1, 128 / 255, 0]);
   });
 });

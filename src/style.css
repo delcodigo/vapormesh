@@ -147,3 +147,8 @@ canvas.thumb { width: 36px; height: 36px; flex: none; image-rendering: pixelated
 .import .numeric-row { margin-bottom: 3px; }
 .import select { width: 100%; padding: 1px 2px; font: 12px 'Courier New', monospace; background: var(--night); color: var(--mint); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
 .import .slider-row select { flex: 1; }
+
+/* palette grids: a surface colour picker and the retro panel's read-only view */
+canvas.palette { display: block; image-rendering: pixelated; border: 2px solid var(--lo); background: #000; }
+canvas.palette.pick { cursor: crosshair; margin: 2px 0 4px; }
+.slider-row output.wide { width: auto; flex: 1; text-align: left; }

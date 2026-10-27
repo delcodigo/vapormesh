@@ -1,5 +1,6 @@
 import { makeDraggable } from './draggable';
-import { defaultSurface, type Surface } from '@/core';
+import { defaultSurface, paletteColor, type Surface } from '@/core';
+import { paintPalette, paletteIndexAt } from './paletteView';
 import {
   AddSurfaceCommand,
   AssignSurfaceCommand,
@@ -9,6 +10,8 @@ import {
   type ModelerState,
 } from '@/modeler';
 
+const PICK_CELL = 10; // pixels per palette entry in the picker
+
 const SLIDERS = [
   ['diffuse', 'Diffuse'],
   ['luminosity', 'Luminosity'],
@@ -16,10 +19,6 @@ const SLIDERS = [
   ['glossiness', 'Glossiness'],
 ] as const;
 type SliderKey = (typeof SLIDERS)[number][0];
-
-const hex = (c: [number, number, number]) =>
-  '#' + c.map((v) => Math.round(Math.min(Math.max(v, 0), 1) * 255).toString(16).padStart(2, '0')).join('');
-const fromHex = (h: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
 
 export interface SurfacePanel {
   toggle(): void;
@@ -38,7 +37,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     <div class="numeric-title"><span>Surface</span><button data-act="close" title="Close">×</button></div>
     <div class="numeric-group"><select data-f="which"></select></div>
     <div class="numeric-group">
-      <div class="slider-row"><span class="name">Color</span><input type="color" data-f="color"></div>
+      <div class="slider-row"><span class="name">Color</span><output data-o="colorIndex" class="wide"></output></div>
+      <canvas class="palette pick" data-f="colorIndex" title="Pick a colour from the project palette"></canvas>
       ${SLIDERS.map(([k, label]) => `<div class="slider-row"><span class="name">${label}</span><input type="range" min="0" max="100" step="1" data-f="${k}"><output data-o="${k}"></output></div>`).join('')}
       <label class="choice"><input type="checkbox" data-f="smoothing"> Smoothing (Gouraud)</label>
       <div class="slider-row"><span class="name">Max angle</span><input type="range" min="0" max="180" step="1" data-f="smoothingAngle"><output data-o="smoothingAngle"></output></div>
@@ -59,7 +59,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
 
   const field = <T extends HTMLElement>(name: string) => el.querySelector<T>(`[data-f="${name}"]`)!;
   const which = field<HTMLSelectElement>('which');
-  const color = field<HTMLInputElement>('color');
+  const swatches = field<HTMLCanvasElement>('colorIndex');
   const smoothing = field<HTMLInputElement>('smoothing');
   const doubleSided = field<HTMLInputElement>('doubleSided');
   const texture = field<HTMLSelectElement>('texture');
@@ -70,11 +70,19 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
   const out = (k: string) => el.querySelector<HTMLElement>(`[data-o="${k}"]`)!;
 
   let index = 0;
+  let pickedColor = 0; // palette index shown and edited in the picker
   let committed: Surface = defaultSurface();
   let own = false; // true while this panel is the one changing the state
   let followed = -1; // first selected polygon we last followed
 
   const current = (): Surface | undefined => state.mesh.surfaces[index];
+
+  /** Redraw the palette grid with the current pick, and say which entry it is. */
+  const showColor = () => {
+    paintPalette(swatches, state.palette, PICK_CELL, pickedColor);
+    const [r, g, b] = paletteColor(state.palette, pickedColor);
+    out('colorIndex').textContent = `#${pickedColor}  (${r}, ${g}, ${b})`;
+  };
 
   const showFields = () => {
     const s = current();
@@ -82,7 +90,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     // Names come from project files, so never put them into HTML.
     which.replaceChildren(...state.mesh.surfaces.map((x, i) => new Option(x.name, String(i))));
     which.value = String(index);
-    color.value = hex(s.color);
+    pickedColor = s.colorIndex;
+    showColor();
     for (const [k] of SLIDERS) {
       sliders[k].value = String(Math.round(s[k] * 100));
       out(k).textContent = `${Math.round(s[k] * 100)}%`;
@@ -119,7 +128,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
 
   const read = (): Surface => ({
     name: committed.name,
-    color: fromHex(color.value),
+    colorIndex: pickedColor,
     diffuse: Number(sliders.diffuse.value) / 100,
     luminosity: Number(sliders.luminosity.value) / 100,
     specular: Number(sliders.specular.value) / 100,
@@ -140,10 +149,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     }
   };
 
-  // live preview while a control is being dragged
-  el.addEventListener('input', (e) => {
-    const t = e.target as HTMLElement;
-    if (!t.dataset.f || t.dataset.f === 'which' || t.dataset.f === 'newName') return;
+  /** Apply the panel's current values to the surface straight away (no undo step yet). */
+  const preview = () => {
     const s = read();
     apply(() => {
       state.mesh.surfaces[index] = s;
@@ -152,6 +159,21 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     for (const [k] of SLIDERS) out(k).textContent = `${Math.round(s[k] * 100)}%`;
     out('smoothingAngle').textContent = `${s.smoothingAngle}°`;
     angle.disabled = !s.smoothing;
+  };
+
+  /** Make the change since the last commit one undo step. */
+  const commit = () => {
+    const after = read();
+    if (JSON.stringify(after) === JSON.stringify(committed)) return;
+    apply(() => state.record(new EditSurfaceCommand(state.mesh, index, committed, after)));
+    committed = cloneSurface(after);
+  };
+
+  // live preview while a control is being dragged
+  el.addEventListener('input', (e) => {
+    const t = e.target as HTMLElement;
+    if (!t.dataset.f || t.dataset.f === 'which' || t.dataset.f === 'newName') return;
+    preview();
   });
 
   // one undo step per committed edit
@@ -163,10 +185,17 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
       return;
     }
     if (!t.dataset.f || t.dataset.f === 'newName') return;
-    const after = read();
-    if (JSON.stringify(after) === JSON.stringify(committed)) return;
-    apply(() => state.record(new EditSurfaceCommand(state.mesh, index, committed, after)));
-    committed = cloneSurface(after);
+    commit();
+  });
+
+  // a click on the palette is a complete edit: preview and commit together
+  swatches.addEventListener('click', (e) => {
+    const picked = paletteIndexAt(swatches, e.clientX, e.clientY);
+    if (picked === pickedColor) return;
+    pickedColor = picked;
+    showColor();
+    preview();
+    commit();
   });
 
   const actions: Record<string, () => void> = {

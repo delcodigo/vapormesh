@@ -7,8 +7,9 @@ export function paletteColor(p: Palette, index: number): [number, number, number
 }
 
 // Sixteen ramps of sixteen shades, dark to light, so lighting a texture walks up and down a ramp.
+// Ramp 0 is a straight grey scale from true black to true white; the others run from a dark tint, through the hue, to a pale tint.
 const RAMP_BASES = [
-  0x909090, // grey (black to white)
+  0x909090, // grey: unused, ramp 0 is a straight black-to-white scale
   0xff71ce, // pink
   0x01cdfe, // cyan
   0x05ffa1, // mint
@@ -33,6 +34,10 @@ export function defaultPalette(): Palette {
     const c = [(base >> 16) & 255, (base >> 8) & 255, base & 255];
     for (let shade = 0; shade < 16; shade++) {
       const t = shade / 15;
+      if (ramp === 0) {
+        out.fill(Math.round(t * 255), (ramp * 16 + shade) * 3, (ramp * 16 + shade) * 3 + 3);
+        continue;
+      }
       for (let k = 0; k < 3; k++) {
         const dark = c[k]! * 0.08;
         const value = t < 0.6 ? dark + (c[k]! - dark) * (t / 0.6) : c[k]! + (255 - c[k]!) * 0.85 * ((t - 0.6) / 0.4);
@@ -41,6 +46,12 @@ export function defaultPalette(): Palette {
     }
   });
   return out;
+}
+
+/** A palette entry as 0..1 floats, for shaders. */
+export function paletteColor01(p: Palette, index: number): [number, number, number] {
+  const [r, g, b] = paletteColor(p, index);
+  return [r / 255, g / 255, b / 255];
 }
 
 /** Index of the palette entry closest to an RGB colour (0..255 per channel). */

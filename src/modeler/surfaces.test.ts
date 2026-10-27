@@ -7,14 +7,14 @@ describe('surface commands', () => {
   it('edits a surface and undoes it without sharing references', () => {
     const s = new ModelerState(box());
     const before = cloneSurface(s.mesh.surfaces[0]!);
-    const after = { ...cloneSurface(before), color: [1, 0, 0] as [number, number, number], smoothing: true };
+    const after = { ...cloneSurface(before), colorIndex: 25, smoothing: true };
     s.mesh.surfaces[0] = after; // live preview already applied
     s.record(new EditSurfaceCommand(s.mesh, 0, before, after));
-    after.color[0] = 0.5; // the panel keeps editing its copy: history must not see it
+    after.colorIndex = 99; // the panel keeps editing its copy: history must not see it
     s.undo();
     expect(s.mesh.surfaces[0]).toEqual(before);
     s.redo();
-    expect(s.mesh.surfaces[0]!.color).toEqual([1, 0, 0]);
+    expect(s.mesh.surfaces[0]!.colorIndex).toBe(25);
     expect(s.mesh.surfaces[0]!.smoothing).toBe(true);
   });
 

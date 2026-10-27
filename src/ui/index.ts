@@ -5,3 +5,4 @@ export * from './renderPanel';
 export * from './draggable';
 export * from './fileActions';
 export * from './imagesPanel';
+export * from './paletteView';

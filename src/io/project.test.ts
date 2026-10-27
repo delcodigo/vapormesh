@@ -6,7 +6,7 @@ import { decodeProject, encodeProject, FORMAT_VERSION, ProjectFormatError, type 
 
 function sample(): ProjectData {
   const ball = createBall({ radius: [0.7, 0.5, 0.3], center: [0.1, 0.2, 0.3], sides: 12, segments: 6, axis: 'z' });
-  ball.surfaces[0] = { ...ball.surfaces[0]!, name: 'Pearl', color: [1, 0.44, 0.8], specular: 0.6, smoothing: true };
+  ball.surfaces[0] = { ...ball.surfaces[0]!, name: 'Pearl', colorIndex: 25, specular: 0.6, smoothing: true };
   const box = createBox({ size: [1, 2, 3], center: [0, 0, 0], segments: [2, 1, 1] });
   box.surfaces.push({ ...box.surfaces[0]!, name: 'Glass', doubleSided: true });
   box.polygons[1]!.surface = 1;
@@ -29,6 +29,22 @@ function sample(): ProjectData {
     },
   };
   return { layers: [box, ball], activeLayer: 1, display, editor, palette, images };
+}
+
+/** Re-write a file's JSON manifest after `mutate`, keeping the binary chunk and fixing the header length. */
+function withManifest(bytes: ArrayBuffer, mutate: (manifest: any) => void): ArrayBuffer {
+  const src = new Uint8Array(bytes);
+  const jsonLength = new DataView(bytes).getUint32(8, true);
+  const manifest = JSON.parse(new TextDecoder().decode(src.slice(16, 16 + jsonLength)));
+  mutate(manifest);
+  const json = new TextEncoder().encode(JSON.stringify(manifest));
+  const binary = src.slice(16 + jsonLength);
+  const out = new Uint8Array(16 + json.length + binary.length);
+  out.set(src.slice(0, 16));
+  new DataView(out.buffer).setUint32(8, json.length, true);
+  out.set(json, 16);
+  out.set(binary, 16 + json.length);
+  return out.buffer;
 }
 
 /** Rewrite the 4 header words so tampering tests don't trip the size check first. */
@@ -126,8 +142,8 @@ describe('project file', () => {
 });
 
 /** Build a version 1 file the way the first release wrote it: layers only, no UVs, palette or images. */
-function encodeV1(layers: Mesh[]): ArrayBuffer {
-  const headers = layers.map((m) => ({ surfaces: m.surfaces, points: m.points.length, polygons: m.polygons.length, indices: m.polygons.reduce((n, p) => n + p.points.length, 0) }));
+function encodeV1(layers: Mesh[], legacyColor: [number, number, number] = [0.8, 0.8, 0.8]): ArrayBuffer {
+  const headers = layers.map((m) => ({ surfaces: m.surfaces.map(({ colorIndex: _drop, ...rest }) => ({ ...rest, color: legacyColor })), points: m.points.length, polygons: m.polygons.length, indices: m.polygons.reduce((n, p) => n + p.points.length, 0) }));
   const json = new TextEncoder().encode(JSON.stringify({ app: 'VaporMesh', activeLayer: 0, layers: headers }));
   const bin = headers.reduce((n, h) => n + h.points * 24 + h.polygons * 8 + h.indices * 4, 0);
   const out = new ArrayBuffer(16 + json.length + bin);
@@ -186,20 +202,7 @@ describe('format version 2', () => {
   });
 
   it('rejects images with bad sizes, duplicate names, and sizes that do not match the data', () => {
-    const tweak = (mutate: (m: { images: unknown }) => void) => {
-      const bytes = new Uint8Array(encodeProject(sample()));
-      const jsonLength = new DataView(bytes.buffer).getUint32(8, true);
-      const manifest = JSON.parse(new TextDecoder().decode(bytes.slice(16, 16 + jsonLength)));
-      mutate(manifest);
-      const json = new TextEncoder().encode(JSON.stringify(manifest));
-      const binary = bytes.slice(16 + jsonLength);
-      const out = new Uint8Array(16 + json.length + binary.length);
-      out.set(bytes.slice(0, 16));
-      new DataView(out.buffer).setUint32(8, json.length, true);
-      out.set(json, 16);
-      out.set(binary, 16 + json.length);
-      return out.buffer;
-    };
+    const tweak = (mutate: (m: { images: unknown }) => void) => withManifest(encodeProject(sample()), mutate);
     expect(() => decodeProject(tweak((m) => ((m.images as { width: number }[])[0]!.width = 100)))).toThrow(/invalid size/);
     expect(() => decodeProject(tweak((m) => ((m.images as { name: string }[])[1]!.name = 'Checker')))).toThrow(/Two images/);
     expect(() => decodeProject(tweak((m) => ((m.images as { height: number }[])[0]!.height = 128)))).toThrow(/does not match/);
@@ -210,6 +213,38 @@ describe('format version 2', () => {
     const data = sample();
     data.layers[1]!.polygons[0]!.uvs![0] = [NaN, 0];
     expect(() => decodeProject(encodeProject(data))).toThrow(/UV/);
+  });
+
+  it('maps the RGB colour of an old file to the nearest entry of the default palette', () => {
+    const plain = createBox({ size: [1, 1, 1], center: [0, 0, 0], segments: [1, 1, 1] });
+    plain.polygons.forEach((p) => delete p.uvs);
+    const pink = decodeProject(encodeV1([plain], [1, 0x71 / 255, 0xce / 255])); // #ff71ce, exactly default entry 25
+    expect(pink.layers[0]!.surfaces[0]!.colorIndex).toBe(25);
+    expect(decodeProject(encodeV1([plain], [0, 0, 0])).layers[0]!.surfaces[0]!.colorIndex).toBe(0);
+  });
+
+  it("maps a legacy colour against the file's own palette, not the default one", () => {
+    const data = sample();
+    data.palette = new Uint8Array(768); // all black...
+    data.palette.set([10, 200, 30], 200 * 3); // ...except entry 200
+    const bytes = withManifest(encodeProject(data), (m) => {
+      m.layers[0].surfaces[0] = { name: 'Old', color: [10 / 255, 200 / 255, 30 / 255] };
+    });
+    expect(decodeProject(bytes).layers[0]!.surfaces[0]!.colorIndex).toBe(200);
+  });
+
+  it('prefers colorIndex over a legacy colour, and falls back to the default for a bad index', () => {
+    const both = withManifest(encodeProject(sample()), (m) => {
+      m.layers[0].surfaces[0] = { name: 'Both', colorIndex: 77, color: [1, 1, 1] };
+      m.layers[0].surfaces[1] = { name: 'Bad', colorIndex: 300 };
+    });
+    const surfaces = decodeProject(both).layers[0]!.surfaces;
+    expect(surfaces[0]!.colorIndex).toBe(77);
+    expect(surfaces[1]!.colorIndex).toBe(12);
+    for (const bad of [-1, 1.5, 'x', null]) {
+      const bytes = withManifest(encodeProject(sample()), (m) => (m.layers[0].surfaces[0] = { name: 'B', colorIndex: bad }));
+      expect(decodeProject(bytes).layers[0]!.surfaces[0]!.colorIndex).toBe(12);
+    }
   });
 
   it('reads surface textures leniently', () => {

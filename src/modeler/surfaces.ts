@@ -2,7 +2,7 @@ import type { Mesh, Surface } from '@/core';
 import type { Command } from './history';
 
 export function cloneSurface(s: Surface): Surface {
-  return { ...s, color: [...s.color] };
+  return { ...s };
 }
 
 /** Replace a surface's settings. Panels preview edits live, then `record` this once the edit is committed. */

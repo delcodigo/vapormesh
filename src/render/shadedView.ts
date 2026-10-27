@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { IndexedImage, Palette, Surface } from '@/core';
+import { paletteColor01, type IndexedImage, type Palette, type Surface } from '@/core';
 import type { ModelerState } from '@/modeler';
 import { buildSurfaceBuffers } from './shading';
 
@@ -129,7 +129,7 @@ export class ShadedView {
   private material(s: Surface, used: Set<string>): THREE.ShaderMaterial {
     return new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Vector3(...s.color) }, // used as authored: no colour-space conversion
+        uColor: { value: new THREE.Vector3(...paletteColor01(this.state.palette, s.colorIndex)) }, // used as authored: no colour-space conversion
         uMap: { value: this.textureFor(s, used) },
         uDiffuse: { value: s.diffuse },
         uLuminosity: { value: s.luminosity },

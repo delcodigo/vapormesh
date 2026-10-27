@@ -1,5 +1,6 @@
 import { makeDraggable } from './draggable';
-import { paletteColor, PALETTE_SIZE, type Palette } from '@/core';
+import type { Palette } from '@/core';
+import { paintPalette } from './paletteView';
 import { RETRO_PRESETS, type RetroOptions } from '@/render';
 
 export interface RenderPanel {
@@ -45,16 +46,6 @@ export function createRenderPanel(
     dither: (v) => `${Math.round(v * 100)}%`,
   };
 
-  const drawPalette = () => {
-    const ctx = swatches.getContext('2d')!;
-    const palette = getPalette();
-    for (let i = 0; i < PALETTE_SIZE; i++) {
-      const [r, g, b] = paletteColor(palette, i);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.fillRect((i % 16) * SWATCH, Math.floor(i / 16) * SWATCH, SWATCH, SWATCH);
-    }
-  };
-
   const show = () => {
     for (const input of inputs) {
       const k = input.dataset.k as keyof RetroOptions;
@@ -66,7 +57,7 @@ export function createRenderPanel(
       el.querySelector(`[data-o="${k}"]`)!.textContent = format[k](retro[k]);
     }
     el.querySelector<HTMLInputElement>('[data-k="colorLevels"]')!.disabled = retro.usePalette;
-    drawPalette();
+    paintPalette(swatches, getPalette(), SWATCH);
   };
 
   el.addEventListener('input', (e) => {

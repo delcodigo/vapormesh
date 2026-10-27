@@ -24,7 +24,7 @@ The file length must equal `16 + J + B` exactly. The JSON chunk is plain text, s
   "activeLayer": 0,
   "layers": [                      // at most 10, in layer order
     {
-      "surfaces": [ { "name": "Default", "color": [r,g,b], "diffuse": 1, "luminosity": 0, "specular": 0,
+      "surfaces": [ { "name": "Default", "colorIndex": 12, "diffuse": 1, "luminosity": 0, "specular": 0,
                       "glossiness": 0.2, "smoothing": false, "smoothingAngle": 89, "doubleSided": false,
                       "texture": "Checker" | null, "wrap": "repeat" | "clamp" } ],
       "points": 8,                 // number of points
@@ -91,10 +91,17 @@ front face.
 - Image sides are powers of two from 8 to 256. Pixels are indices into the palette; there is one palette for
   the whole project.
 
+### Surface colours
+
+A surface's base colour is `colorIndex`, an index (0..255) into the project palette, so editing the palette
+recolours every surface that uses it. Files written before this carried `"color": [r, g, b]` (0..1) instead;
+a reader maps those to the nearest entry of the file's palette (the default palette for version 1 files).
+`colorIndex` wins if both are present, and an invalid index falls back to 12.
+
 ### Version history
 
 - **1:** layers only. Readers of version 2 load these files and supply the default palette and starter images.
-- **2:** adds UVs, the palette and images, `surface.texture`/`wrap` and `retro.usePalette`.
+- **2:** adds UVs, the palette and images, `surface.texture`/`wrap`, `retro.usePalette` and `surface.colorIndex` (replacing the RGB `color`; no version bump, since the JSON is read leniently).
 
 ## Validation
 

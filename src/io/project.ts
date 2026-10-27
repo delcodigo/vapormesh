@@ -4,6 +4,7 @@ import {
   defaultSurface,
   isValidImageSize,
   Mesh,
+  nearestIndex,
   PALETTE_SIZE,
   type IndexedImage,
   type Palette,
@@ -139,14 +140,24 @@ function count(v: unknown, what: string): number {
   return v;
 }
 
-/** Read a surface leniently: unknown or missing fields fall back to defaults, so older and newer files still load. */
-function parseSurface(raw: unknown, index: number): Surface {
+/**
+ * Read a surface leniently: unknown or missing fields fall back to defaults, so older and newer files still load.
+ * Files written before surface colours became palette indices carry `color: [r, g, b]` (0..1); those map to the
+ * nearest entry of the project palette.
+ */
+function parseSurface(raw: unknown, index: number, palette: Palette): Surface {
   const d = defaultSurface(`Surface ${index + 1}`);
   if (!isObject(raw)) return d;
-  const color = Array.isArray(raw.color) && raw.color.length === 3 ? raw.color.map((c) => clamp(num(c, 0.8), 0, 1)) : d.color;
+  let colorIndex = d.colorIndex;
+  if (typeof raw.colorIndex === 'number' && Number.isInteger(raw.colorIndex) && raw.colorIndex >= 0 && raw.colorIndex < PALETTE_SIZE) {
+    colorIndex = raw.colorIndex;
+  } else if (Array.isArray(raw.color) && raw.color.length === 3) {
+    const [r, g, b] = raw.color.map((c) => clamp(num(c, 0.8), 0, 1) * 255);
+    colorIndex = nearestIndex(palette, r!, g!, b!);
+  }
   return {
     name: typeof raw.name === 'string' && raw.name ? raw.name : d.name,
-    color: color as Vec3,
+    colorIndex,
     diffuse: num(raw.diffuse, d.diffuse),
     luminosity: num(raw.luminosity, d.luminosity),
     specular: num(raw.specular, d.specular),
@@ -254,6 +265,10 @@ export function decodeProject(buffer: ArrayBuffer): ProjectData {
     headers.reduce((n, h) => n + layerBytes(h), 0) + (hasPalette ? PALETTE_BYTES : 0) + imageHeaders.reduce((n, h) => n + imageBytes(h), 0);
   if (expected !== binLength) throw new ProjectFormatError('Geometry size does not match the project metadata');
 
+  // The layers come first in the file, then the palette, then the images. Surfaces need the palette, so read it first.
+  const layersEnd = HEADER_BYTES + jsonLength + headers.reduce((n, h) => n + layerBytes(h), 0);
+  const palette: Palette = hasPalette ? new Uint8Array(buffer.slice(layersEnd, layersEnd + PALETTE_BYTES)) : defaultPalette();
+
   let o = HEADER_BYTES + jsonLength;
   const u32 = () => {
     const v = view.getUint32(o, true);
@@ -267,7 +282,7 @@ export function decodeProject(buffer: ArrayBuffer): ProjectData {
   };
   const layers = headers.map((h, li) => {
     const mesh = new Mesh();
-    mesh.surfaces = h.surfaces.map(parseSurface);
+    mesh.surfaces = h.surfaces.map((raw, i) => parseSurface(raw, i, palette));
     if (mesh.surfaces.length === 0) mesh.surfaces.push(defaultSurface());
 
     for (let i = 0; i < h.points; i++) {
@@ -294,13 +309,7 @@ export function decodeProject(buffer: ArrayBuffer): ProjectData {
     return mesh;
   });
 
-  let palette: Palette;
-  if (hasPalette) {
-    palette = new Uint8Array(buffer.slice(o, o + PALETTE_BYTES));
-    o += PALETTE_BYTES;
-  } else {
-    palette = defaultPalette();
-  }
+  o = layersEnd + (hasPalette ? PALETTE_BYTES : 0);
   // Files from before version 2 had no images; give them the same starter images a new project has.
   const images: IndexedImage[] = v2
     ? imageHeaders.map((h) => {
