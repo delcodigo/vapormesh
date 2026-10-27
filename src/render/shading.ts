@@ -43,7 +43,7 @@ export function buildSurfaceBuffers(mesh: Mesh, surfaceIndex: number): SurfaceBu
   const minDot = Math.cos((surface.smoothingAngle * Math.PI) / 180);
 
   mesh.polygons.forEach((poly, pi) => {
-    if (poly.surface !== surfaceIndex || poly.points.length < 3 || length(faces[pi]!) === 0) return;
+    if (mesh.hidden.has(pi) || poly.surface !== surfaceIndex || poly.points.length < 3 || length(faces[pi]!) === 0) return;
     const own = unit(faces[pi]!);
     const corners = poly.points.map((pt): Vec3 => {
       if (!surface.smoothing) return own;

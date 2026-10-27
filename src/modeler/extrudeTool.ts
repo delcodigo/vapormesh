@@ -75,6 +75,7 @@ export class ExtrudeTool implements DragTool {
     const copy = cloneGeometry(geo);
     this.state.mesh.points = copy.points;
     this.state.mesh.polygons = copy.polygons;
+    this.state.mesh.hidden.clear();
     this.state.changed();
   }
 

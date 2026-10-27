@@ -26,6 +26,8 @@ export interface DragInfo {
   /** Canvas-relative CSS pixels. */
   start: { x: number; y: number };
   current: { x: number; y: number };
+  /** Where the pointer has been since the press, when the handler asked for a lasso. */
+  path?: { x: number; y: number }[];
   shift: boolean;
   ctrl: boolean;
 }
@@ -35,7 +37,7 @@ export interface DragHandler {
   /** Draw a selection rectangle while dragging. Read once, after `begin` returns true. */
   readonly rubberBand?: boolean;
   /** What to draw while dragging: a box (selection) or a line (the knife). */
-  readonly bandShape?: 'box' | 'line';
+  readonly bandShape?: 'box' | 'line' | 'lasso';
   /** Return true to take over the drag (otherwise the viewport navigates). */
   /** `press` is where the pointer went down, in canvas pixels. */
   begin(view: Viewport, e: PointerEvent, press: { x: number; y: number }): boolean;
@@ -217,7 +219,23 @@ export class Viewport implements Projector {
     style.transform = `rotate(${Math.atan2(b.y - a.y, b.x - a.x)}rad)`;
   }
 
+  private lassoLine: SVGSVGElement | null = null;
+
+  /** A dashed freehand outline, closed back to the press as it will be when released. */
+  private showLasso(path: { x: number; y: number }[]): void {
+    if (!this.lassoLine) {
+      const ns = 'http://www.w3.org/2000/svg';
+      this.lassoLine = document.createElementNS(ns, 'svg');
+      this.lassoLine.setAttribute('class', 'rubberlasso');
+      this.lassoLine.appendChild(document.createElementNS(ns, 'polygon'));
+      this.canvas.parentElement?.appendChild(this.lassoLine);
+    }
+    this.lassoLine.style.display = 'block';
+    this.lassoLine.firstElementChild!.setAttribute('points', path.map((p) => `${p.x},${p.y}`).join(' '));
+  }
+
   private hideBand(): void {
+    if (this.lassoLine) this.lassoLine.style.display = 'none';
     if (this.band) this.band.style.display = 'none';
     if (this.line) this.line.style.display = 'none';
   }
@@ -303,7 +321,9 @@ export class Viewport implements Projector {
     let moved = false;
     let dragging = false;
     let banding = false;
+    let path: { x: number; y: number }[] = [];
     const info = (e: PointerEvent): DragInfo => ({
+      path,
       offset: this.screenToWorld(e.clientX - start.x, e.clientY - start.y),
       start: startRel,
       current: rel(e),
@@ -315,6 +335,7 @@ export class Viewport implements Projector {
       c.setPointerCapture(e.pointerId);
       last = start = { x: e.clientX, y: e.clientY };
       startRel = rel(e);
+      path = [startRel];
       button = e.button;
       moved = false;
       dragging = false;
@@ -329,9 +350,11 @@ export class Viewport implements Projector {
         banding = dragging && !!this.dragHandler?.rubberBand;
       }
       if (dragging) {
+        if (this.dragHandler!.bandShape === 'lasso') path.push(rel(e));
         const i = info(e);
         if (banding) {
-          if (this.dragHandler!.bandShape === 'line') this.showLine(i.start, i.current);
+          if (this.dragHandler!.bandShape === 'lasso') this.showLasso(path);
+          else if (this.dragHandler!.bandShape === 'line') this.showLine(i.start, i.current);
           else this.showBand(i.start, i.current);
         }
         this.dragHandler!.move(i);

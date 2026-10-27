@@ -1,6 +1,7 @@
 import type { Vec3 } from '@/core';
 import { deformer, magnet, magnetWeight, type DeformAxis, type DeformSpec } from './deform';
 import { PointDrag, type DragMove, type ViewInfo } from './pointDrag';
+import { snapPointInView } from './selectTools';
 import type { ModelerState } from './state';
 
 /** Pixels around the pivot within which Stretch treats the cursor as this far away. */
@@ -94,17 +95,22 @@ export class StretchTool extends PointDrag {
   }
 }
 
-/** Moves the one point nearest the press, anywhere in the layer, whether or not it is selected. */
+/** Moves the one point nearest the press, anywhere in the layer, whether or not it is selected. With snapping on it lands on the grid. */
 export class PointDragTool extends PointDrag {
+  private viewAxis: Vec3 = [0, 0, 1];
+
   constructor(state: ModelerState) {
     super(state, 'Drag');
   }
 
   protected override choosePoints(view: ViewInfo, press: { x: number; y: number }): number[] {
+    this.viewAxis = view.viewAxis;
     let best = -1;
     let bestDistance = GRAB_RADIUS;
+    const hidden = this.state.mesh.hiddenPoints();
     let bestDepth = -Infinity;
     this.state.mesh.points.forEach((p, i) => {
+      if (hidden.has(i)) return;
       const s = view.project(p);
       const d = Math.hypot(s.x - press.x, s.y - press.y);
       const depth = p[0] * view.viewAxis[0] + p[1] * view.viewAxis[1] + p[2] * view.viewAxis[2];
@@ -119,7 +125,8 @@ export class PointDragTool extends PointDrag {
   }
 
   move({ offset }: DragMove): void {
-    this.transform((p): Vec3 => [p[0] + offset[0], p[1] + offset[1], p[2] + offset[2]]);
+    const grid = this.state.snap;
+    this.transform((p): Vec3 => snapPointInView([p[0] + offset[0], p[1] + offset[1], p[2] + offset[2]], grid, this.viewAxis));
   }
 }
 

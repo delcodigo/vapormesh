@@ -18,7 +18,9 @@ export function pickPoint(mesh: Mesh, proj: Projector, x: number, y: number, rad
   let best: number | null = null;
   let bestDist = Infinity;
   let bestZ = Infinity;
+  const hiddenPoints = mesh.hiddenPoints();
   mesh.points.forEach((p, i) => {
+    if (hiddenPoints.has(i)) return;
     const s = proj.project(p);
     if (!visible(s)) return;
     const d = Math.hypot(s.x - x, s.y - y);
@@ -32,7 +34,7 @@ export function pickPoint(mesh: Mesh, proj: Projector, x: number, y: number, rad
   return best;
 }
 
-function inside(poly: ScreenPoint[], x: number, y: number): boolean {
+function inside(poly: { x: number; y: number }[], x: number, y: number): boolean {
   let hit = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const a = poly[i]!;
@@ -47,6 +49,7 @@ export function pickPolygon(mesh: Mesh, proj: Projector, x: number, y: number): 
   let best: number | null = null;
   let bestZ = Infinity;
   mesh.polygons.forEach((poly, i) => {
+    if (mesh.hidden.has(i)) return;
     const pts = poly.points.map((idx) => proj.project(mesh.points[idx]!));
     if (pts.length < 3 || !pts.every(visible) || !inside(pts, x, y)) return;
     const z = pts.reduce((sum, s) => sum + s.z, 0) / pts.length;
@@ -71,23 +74,48 @@ const inRect = (r: ScreenRect, x: number, y: number) =>
 
 /** Every point whose projection falls inside the rectangle. */
 export function pointsInRect(mesh: Mesh, proj: Projector, rect: ScreenRect): number[] {
+  return pointsWhere(mesh, proj, (x, y) => inRect(rect, x, y));
+}
+
+function pointsWhere(mesh: Mesh, proj: Projector, test: (x: number, y: number) => boolean): number[] {
   const ids: number[] = [];
+  const hiddenPoints = mesh.hiddenPoints();
   mesh.points.forEach((p, i) => {
+    if (hiddenPoints.has(i)) return;
     const s = proj.project(p);
-    if (visible(s) && inRect(rect, s.x, s.y)) ids.push(i);
+    if (visible(s) && test(s.x, s.y)) ids.push(i);
   });
   return ids;
 }
 
-/** Every polygon whose projected centre falls inside the rectangle. */
-export function polygonsInRect(mesh: Mesh, proj: Projector, rect: ScreenRect): number[] {
+function polygonsWhere(mesh: Mesh, proj: Projector, test: (x: number, y: number) => boolean): number[] {
   const ids: number[] = [];
   mesh.polygons.forEach((poly, i) => {
+    if (mesh.hidden.has(i)) return;
     const pts = poly.points.map((idx) => proj.project(mesh.points[idx]!));
     if (pts.length === 0 || !pts.every(visible)) return;
     const cx = pts.reduce((sum, s) => sum + s.x, 0) / pts.length;
     const cy = pts.reduce((sum, s) => sum + s.y, 0) / pts.length;
-    if (inRect(rect, cx, cy)) ids.push(i);
+    if (test(cx, cy)) ids.push(i);
   });
   return ids;
+}
+
+/** A freehand outline in screen pixels, for the lasso. */
+export type Lasso = { x: number; y: number }[];
+const inLasso = (lasso: Lasso) => (x: number, y: number) => lasso.length >= 3 && inside(lasso, x, y);
+
+/** Every point whose projection falls inside the lasso. */
+export function pointsInLasso(mesh: Mesh, proj: Projector, lasso: Lasso): number[] {
+  return pointsWhere(mesh, proj, inLasso(lasso));
+}
+
+/** Every polygon whose projected centre falls inside the lasso. */
+export function polygonsInLasso(mesh: Mesh, proj: Projector, lasso: Lasso): number[] {
+  return polygonsWhere(mesh, proj, inLasso(lasso));
+}
+
+/** Every polygon whose projected centre falls inside the rectangle. */
+export function polygonsInRect(mesh: Mesh, proj: Projector, rect: ScreenRect): number[] {
+  return polygonsWhere(mesh, proj, (x, y) => inRect(rect, x, y));
 }

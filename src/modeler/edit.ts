@@ -78,6 +78,7 @@ export class ReplaceGeometryCommand implements Command {
     const copy = cloneGeometry(geo); // never hand out the stored arrays: later edits would change history
     this.mesh.points = copy.points;
     this.mesh.polygons = copy.polygons;
+    this.mesh.hidden.clear(); // polygons were renumbered
     restoreSelection(this.state, selection);
   }
 }

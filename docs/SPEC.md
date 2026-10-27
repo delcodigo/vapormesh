@@ -67,18 +67,19 @@ survives: **automatic texture coordinates at a fixed texel density** (box projec
 Done: palette and indexed images with per-corner UVs and surface textures (file format v2), PNG import, the UV
 editor, the palette editor; core editing (delete, merge points, weld, flip, make polygon, triple, cut/copy/paste);
 extrude, bevel, mirror, the knife and boolean (add, subtract, intersect between layers); the deformers (stretch, drag,
-magnet, bend, twist, taper), each by dragging in a view or by typed values.
+magnet, bend, twist, taper), each by dragging in a view or by typed values; selection and display (select connected,
+grow/shrink, lasso, grid snapping for Move and Drag, hide/unhide; hiding is display state: it is not saved and a
+structural edit unhides).
 
 Next, in this order, until the Modeler can build a prop or a character:
 
-1. Selection and display: select connected, grow/shrink, lasso, grid snapping, hide/unhide.
-2. The rest of the Multiply family: array/clone, lathe, smooth shift. (Added after the fact; deliberately after the
+1. The rest of the Multiply family: array/clone, lathe, smooth shift. (Added after the fact; deliberately after the
    items above, which were agreed first.)
 
 Then:
 
-3. Texture editor: pixel painting on indexed images (the palette editor is already done).
-4. glTF export, so assets can be tried in Unity early.
-5. Layout: camera, lights, keyframes, then video and PNG export.
-6. Animator.
-7. Tracker, any time.
+2. Texture editor: pixel painting on indexed images (the palette editor is already done).
+3. glTF export, so assets can be tried in Unity early.
+4. Layout: camera, lights, keyframes, then video and PNG export.
+5. Animator.
+6. Tracker, any time.

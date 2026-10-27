@@ -9,6 +9,11 @@ import {
   deleteSelection,
   AxisDeformTool,
   ExtrudeTool,
+  growSelection,
+  hideSelection,
+  selectConnected,
+  shrinkSelection,
+  unhideAll,
   MagnetTool,
   PointDragTool,
   StretchTool,
@@ -55,7 +60,9 @@ import {
   ShadedView,
   pickPoint,
   pickPolygon,
+  pointsInLasso,
   pointsInRect,
+  polygonsInLasso,
   polygonsInRect,
   Viewport,
   type DragInfo,
@@ -78,6 +85,14 @@ const VIEW_MODES: [ViewMode, string][] = [
   ['wire', 'Wire'],
   ['shaded', 'Shaded'],
   ['shaded-wire', 'Shaded+Wire'],
+];
+const SNAPS: [number, string][] = [
+  [0, 'Off'],
+  [0.05, '0.05'],
+  [0.1, '0.1'],
+  [0.25, '0.25'],
+  [0.5, '0.5'],
+  [1, '1'],
 ];
 const MULTIPLY_TOOLS: [ToolName, string][] = [
   ['extrude', 'Extrude'],
@@ -136,6 +151,7 @@ app.innerHTML = `
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
+      <label class="snap" title="Moves and Drag snap to this grid"><span>Snap</span><select data-snap>${SNAPS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
       <div class="section">Deform</div>
       ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <div class="section">Multiply</div>
@@ -155,6 +171,14 @@ app.innerHTML = `
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
       <button data-action="none">None</button>
+      <button data-select="connected" title="Extend the selection to everything joined to it">Connected</button>
+      <button data-select="grow" title="Add the points or polygons next to the selection">Grow</button>
+      <button data-select="shrink" title="Remove the outer layer of the selection">Shrink</button>
+      <button data-action="lasso" title="Drag a freehand outline instead of a box to select">Lasso</button>
+      <div class="section">Display</div>
+      <button data-select="hide" title="Hide the selected polygons (in Point mode, those whose points are all selected)">Hide</button>
+      <button data-select="hideOthers" title="Hide everything except the selection">Hide Others</button>
+      <button data-select="unhide" title="Show everything again">Unhide All</button>
       <div class="section">Edit</div>
       <button data-edit="delete" title="Delete the selected points or polygons (Delete)">Delete</button>
       <button data-edit="merge" title="Merge points that sit on top of each other: the selected ones, or all">Merge Points</button>
@@ -213,6 +237,7 @@ const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
 deformPanel = createDeformPanel(state, app.querySelector('.workspace')!);
 extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
+const lassoButton = app.querySelector<HTMLButtonElement>('[data-action="lasso"]')!;
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
@@ -310,7 +335,24 @@ const ACTIONS: Record<string, () => void> = {
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
   none: () => state.clearSelection(),
+  lasso: () => state.setLasso(!state.lasso),
 };
+const SELECT_ACTIONS: Record<string, () => EditResult> = {
+  connected: () => selectConnected(state),
+  grow: () => growSelection(state),
+  shrink: () => shrinkSelection(state),
+  hide: () => hideSelection(state),
+  hideOthers: () => hideSelection(state, true),
+  unhide: () => unhideAll(state),
+};
+app.querySelectorAll<HTMLButtonElement>('[data-select]').forEach((b) =>
+  b.addEventListener('click', () => {
+    const r = SELECT_ACTIONS[b.dataset.select!]!();
+    notify(r.message, !r.ok);
+  }),
+);
+const snapSelect = app.querySelector<HTMLSelectElement>('[data-snap]')!;
+snapSelect.addEventListener('change', () => state.setSnap(Number(snapSelect.value)));
 app.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((b) =>
   b.addEventListener('click', () => ACTIONS[b.dataset.action!]!()),
 );
@@ -322,6 +364,8 @@ state.subscribe(() => {
   modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   toolButtons.forEach((b) => b.classList.toggle('active', b.dataset.tool === activeTool));
   numericButton.classList.toggle('active', state.numericOp !== null);
+  lassoButton.classList.toggle('active', state.lasso);
+  snapSelect.value = String(state.snap);
   primitiveButtons.forEach((b) => b.classList.toggle('active', b.dataset.create === state.createOp));
   layerButtons.forEach((b, i) => {
     b.classList.toggle('active', i === state.activeLayer);
@@ -384,8 +428,14 @@ window.addEventListener('keydown', (e) => {
 /** Shift adds to the selection, Ctrl removes from it, otherwise it replaces. */
 function boxSelect(vp: Viewport, i: DragInfo): void {
   const rect = { x0: i.start.x, y0: i.start.y, x1: i.current.x, y1: i.current.y };
-  const ids =
-    state.mode === 'points' ? pointsInRect(state.mesh, vp, rect) : polygonsInRect(state.mesh, vp, rect);
+  const lasso = state.lasso ? (i.path ?? []) : null;
+  const ids = lasso
+    ? state.mode === 'points'
+      ? pointsInLasso(state.mesh, vp, lasso)
+      : polygonsInLasso(state.mesh, vp, lasso)
+    : state.mode === 'points'
+      ? pointsInRect(state.mesh, vp, rect)
+      : polygonsInRect(state.mesh, vp, rect);
   state.applySelection(ids, i.ctrl ? 'remove' : i.shift ? 'add' : 'replace');
 }
 
@@ -409,7 +459,7 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
       return state.activeTool === null || state.activeTool === 'knife';
     },
     get bandShape() {
-      return state.activeTool === 'knife' ? ('line' as const) : ('box' as const);
+      return state.activeTool === 'knife' ? ('line' as const) : state.lasso ? ('lasso' as const) : ('box' as const);
     },
     begin: (v, e, press) => {
       const tool = activeDragTool();

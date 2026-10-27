@@ -67,6 +67,9 @@ button.active { background: var(--pink); border-color: var(--lo) var(--hi) var(-
   border: 1px dashed var(--cream); background: rgba(255, 251, 150, 0.12);
 }
 
+.rubberlasso { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; overflow: visible; }
+.rubberlasso polygon { fill: rgba(255, 251, 150, 0.12); stroke: var(--cream); stroke-width: 1; stroke-dasharray: 4 3; }
+
 .workspace { position: relative; }
 .numeric {
   position: absolute; top: 8px; right: 8px; z-index: 5; width: 232px; padding: 4px; box-sizing: border-box;
@@ -181,6 +184,8 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .toolpanel { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--lo) var(--panel); }
 .toolpanel button { margin-bottom: 2px; padding-top: 1px; padding-bottom: 1px; }
 .toolpanel .section { margin: 6px 0 3px; }
+.toolpanel .snap { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; color: var(--lo); font-size: 11px; }
+.toolpanel .snap select { flex: 1; min-width: 0; font: 12px 'Courier New', monospace; background: var(--night); color: var(--mint); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
 
 .numeric.mirror { right: 232px; top: 260px; width: 214px; }
 .numeric.mirror .numeric-row select { width: 100%; }

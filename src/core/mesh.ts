@@ -60,6 +60,24 @@ export class Mesh {
   points: Vec3[] = [];
   polygons: Polygon[] = [];
   surfaces: Surface[] = [defaultSurface()];
+  /**
+   * Polygons hidden in the editor (display state: not saved, not undoable). Structural edits renumber polygons, so they
+   * clear it. Hidden polygons are not drawn, picked or selected.
+   */
+  readonly hidden = new Set<number>();
+
+  /** Points that belong to polygons, all of which are hidden. Points no polygon uses are never hidden. */
+  hiddenPoints(): Set<number> {
+    const out = new Set<number>();
+    if (this.hidden.size === 0) return out;
+    const seenVisible = new Set<number>();
+    this.polygons.forEach((poly, i) => {
+      if (this.hidden.has(i)) poly.points.forEach((p) => out.add(p));
+      else poly.points.forEach((p) => seenVisible.add(p));
+    });
+    for (const p of seenVisible) out.delete(p);
+    return out;
+  }
 
   addPoint(p: Vec3): number {
     return this.points.push(p) - 1;
@@ -99,5 +117,6 @@ export class Mesh {
     this.points.length = size.points;
     this.polygons.length = size.polygons;
     this.surfaces.length = size.surfaces;
+    for (const id of this.hidden) if (id >= size.polygons) this.hidden.delete(id);
   }
 }

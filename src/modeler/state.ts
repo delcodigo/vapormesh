@@ -204,24 +204,52 @@ export class ModelerState {
     this.changed();
   }
 
-  private get selectableCount(): number {
-    return this.mode === 'points' ? this.mesh.points.length : this.mesh.polygons.length;
+  /** Everything of the current mode that is not hidden. */
+  selectableIds(): number[] {
+    const { mesh } = this;
+    if (this.mode === 'points') {
+      const hidden = mesh.hiddenPoints();
+      return mesh.points.flatMap((_, i) => (hidden.has(i) ? [] : [i]));
+    }
+    return mesh.polygons.flatMap((_, i) => (mesh.hidden.has(i) ? [] : [i]));
+  }
+
+  /** Grid size that moves snap to, or 0 for no snapping. */
+  snap = 0;
+
+  setSnap(size: number): void {
+    const next = Number.isFinite(size) && size > 0 ? size : 0;
+    if (next === this.snap) return;
+    this.snap = next;
+    this.changed();
+  }
+
+  /** Whether box selections are drawn freehand (a lasso) instead of as a rectangle. */
+  lasso = false;
+
+  setLasso(on: boolean): void {
+    if (on === this.lasso) return;
+    this.lasso = on;
+    this.changed();
   }
 
   selectAll(): void {
-    this.applySelection(Array.from({ length: this.selectableCount }, (_, i) => i), 'replace');
+    this.applySelection(this.selectableIds(), 'replace');
   }
 
   invertSelection(): void {
     const sel = this.selection;
-    const inverted = Array.from({ length: this.selectableCount }, (_, i) => i).filter((i) => !sel.has(i));
+    const inverted = this.selectableIds().filter((i) => !sel.has(i));
     this.applySelection(inverted, 'replace');
   }
 
   /** Points a transform acts on: the selection (or its polygons' points), or the whole object if empty. */
   affectedPoints(): number[] {
     const { mesh, mode, selection } = this;
-    if (selection.size === 0) return mesh.points.map((_, i) => i);
+    if (selection.size === 0) {
+      const hidden = mesh.hiddenPoints();
+      return mesh.points.flatMap((_, i) => (hidden.has(i) ? [] : [i]));
+    }
     if (mode === 'points') return [...selection];
     return [...new Set([...selection].flatMap((pi) => mesh.polygons[pi]!.points))];
   }

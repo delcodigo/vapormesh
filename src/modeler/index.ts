@@ -20,6 +20,7 @@ export * from './triangulate';
 export * from './boolean';
 export * from './deform';
 export * from './deformTools';
+export * from './selectTools';
 export * from './cleanup';
 export * from './edit';
 export * from './state';

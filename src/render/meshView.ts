@@ -9,7 +9,8 @@ const { wire: EDGE, point: POINT, selected: SELECTED, selectedFill: SELECTED_FIL
 function uniqueEdges(mesh: Mesh): number[] {
   const seen = new Set<string>();
   const out: number[] = [];
-  for (const { points } of mesh.polygons) {
+  mesh.polygons.forEach(({ points }, pi) => {
+    if (mesh.hidden.has(pi)) return;
     points.forEach((a, i) => {
       const b = points[(i + 1) % points.length]!;
       const key = a < b ? `${a}_${b}` : `${b}_${a}`;
@@ -17,7 +18,7 @@ function uniqueEdges(mesh: Mesh): number[] {
       seen.add(key);
       out.push(...mesh.points[a]!, ...mesh.points[b]!);
     });
-  }
+  });
   return out;
 }
 
@@ -45,6 +46,7 @@ export class MeshView {
     const seg = (out: number[], a: number, b: number) => out.push(...mesh.points[a]!, ...mesh.points[b]!);
 
     mesh.polygons.forEach((poly, pi) => {
+      if (mesh.hidden.has(pi)) return;
       const ids = poly.points;
       const selected = mode === 'polygons' && selectedPolygons.has(pi);
       for (let i = 0; i < ids.length; i++) {
@@ -89,7 +91,10 @@ export class MeshView {
     if (mode === 'points') {
       const all: number[] = [];
       const sel: number[] = [];
-      mesh.points.forEach((p, i) => (selectedPoints.has(i) ? sel : all).push(...p));
+      const hidden = mesh.hiddenPoints();
+      mesh.points.forEach((p, i) => {
+        if (!hidden.has(i)) (selectedPoints.has(i) ? sel : all).push(...p);
+      });
       this.addPoints(all, POINT, 4, 4);
       this.addPoints(sel, SELECTED, 8, 5);
     }
