@@ -17,7 +17,7 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 | Surfaces and textures | Per-surface colour (from the palette), diffuse, luminosity, specular, smoothing and angle; indexed images, PNG import, per-corner UVs, a UV editor with projections |
 | Palette | One 256-colour palette per project, a palette editor, `.gpl` and `.act` import and export, palettes from pictures |
 | Look | A retro Shaded view: low resolution, nearest-neighbour upscaling, ordered dither, mapped to the project palette |
-| Projects | Save and load `.vmesh` files, with undo for everything ([format](docs/FORMAT.md)) |
+| Projects | Save and load `.vmesh` files, with undo for everything ([format](docs/FORMAT.md)). Import and export Wavefront `.obj` (with a `.mtl` of colours) |
 
 Not yet: smooth shift (the rest of Multiply), the texture painter, glTF export, Layout and cutscenes,
 the animator, the tracker.
@@ -39,7 +39,11 @@ groups the rest in tabs, one at a time:
 To **lathe**, click the profile points in order along the outline (Point mode, bottom to top), choose Lathe, then drag in a
 view to place the axis: the shape follows the pointer. The options set the axis direction, the sides and the angle.
 
-New, Load and Save are in the **File** menu in the menu bar (`Ctrl+O` and `Ctrl+S` still work). Choosing a tool with its key shows its tab, and the last tab is remembered.
+New, Load, Save, Import OBJ and Export OBJ are in the **File** menu in the menu bar (`Ctrl+O` and `Ctrl+S` still work).
+
+**OBJ** keeps points shared, n-gons, UVs and one material per surface (the colour only). Each layer is an object: exporting writes
+`name.obj` and `name.mtl`; importing puts each object into an empty layer, and picks up colours if you select the `.mtl` along with
+the `.obj`. Textures are not written, since an OBJ can only point at an image file; glTF export, later, will carry them. Choosing a tool with its key shows its tab, and the last tab is remembered.
 
 ## Keys
 

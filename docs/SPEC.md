@@ -37,7 +37,7 @@ Status of each item: **Decided** (by the author), **Proposed** (a default, chang
 
 | Tool | Export |
 |------|--------|
-| Modeler, Animator | glTF (.glb) with UVs, surfaces and animation; OBJ as a fallback |
+| Modeler, Animator | glTF (.glb) with UVs, surfaces and animation; OBJ as a fallback (done: geometry, UVs and colours, no textures) |
 | Texture editor | Indexed PNG, plus the palette as .gpl and .act |
 | Layout | WebM or MP4 video, plus PNG sequences |
 | Tracker | The module itself, plus a WAV render |
@@ -66,7 +66,7 @@ survives: **automatic texture coordinates at a fixed texel density** (box projec
 
 Done: palette and indexed images with per-corner UVs and surface textures (file format v2), PNG import, the UV
 editor, the palette editor; core editing (delete, merge points, weld, flip, make polygon, triple, cut/copy/paste);
-extrude, bevel, array/clone, lathe, mirror, the knife and boolean (add, subtract, intersect between layers); the deformers (stretch, drag,
+Wavefront OBJ import and export (a .mtl of colours; no textures); extrude, bevel, array/clone, lathe, mirror, the knife and boolean (add, subtract, intersect between layers); the deformers (stretch, drag,
 magnet, bend, twist, taper), each by dragging in a view or by typed values; selection and display (select connected,
 grow/shrink, lasso, grid snapping for Move and Drag, hide/unhide; hiding is display state: it is not saved and a
 structural edit unhides).

@@ -172,6 +172,9 @@ app.innerHTML = `
         <button role="menuitem" data-action="new"><span>New</span></button>
         <button role="menuitem" data-action="load"><span>Load…</span><kbd>Ctrl+O</kbd></button>
         <button role="menuitem" data-action="save"><span>Save…</span><kbd>Ctrl+S</kbd></button>
+        <div class="sep" role="separator"></div>
+        <button role="menuitem" data-action="importObj" title="Add an .obj (pick its .mtl too for colours) to empty layers"><span>Import OBJ…</span></button>
+        <button role="menuitem" data-action="exportObj" title="Download the model as .obj and .mtl"><span>Export OBJ…</span></button>
       </div>
     </span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
   <div class="workspace">
@@ -248,7 +251,8 @@ app.innerHTML = `
     <button id="redo">Redo</button>
     <button id="undo">Undo</button>
   </div>
-  <input type="file" id="file-input" accept=".vmesh" hidden>`;
+  <input type="file" id="file-input" accept=".vmesh" hidden>
+  <input type="file" id="obj-input" accept=".obj,.mtl" multiple hidden>`;
 
 const readout = app.querySelector<HTMLElement>('.readout')!;
 const modeButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-mode]')];
@@ -368,7 +372,7 @@ const editorBridge: EditorBridge = {
     for (const { vp } of viewports) vp.resetView();
   },
 };
-const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, editorBridge, notify, showViewMode);
+const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, app.querySelector<HTMLInputElement>('#obj-input')!, editorBridge, notify, showViewMode);
 window.addEventListener('beforeunload', (e) => {
   if (files.isDirty()) e.preventDefault(); // makes the browser ask before closing with unsaved work
 });
@@ -398,6 +402,8 @@ const ACTIONS: Record<string, () => void> = {
   new: () => files.newProject(),
   load: () => files.load(),
   save: () => files.save(),
+  importObj: () => files.importObj(),
+  exportObj: () => files.exportObj(),
   numeric: () => numeric.toggle(),
   position: () => positionPanel.toggle(),
   surface: () => surfaces.toggle(),

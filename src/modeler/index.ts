@@ -14,6 +14,7 @@ export * from './geometry';
 export * from './extrude';
 export * from './extrudeTool';
 export * from './array';
+export * from './importMeshes';
 export * from './lathe';
 export * from './latheTool';
 export * from './mirror';

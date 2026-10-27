@@ -1,5 +1,5 @@
-import { decodeProject, encodeProject, ProjectFormatError, type EditorState } from '@/io';
-import type { ModelerState } from '@/modeler';
+import { decodeProject, encodeProject, exportObj, ObjFormatError, parseMtl, parseObj, ProjectFormatError, type EditorState } from '@/io';
+import { addMeshesToLayers, type ModelerState } from '@/modeler';
 import type { DisplaySettings } from '@/render';
 import { downloadBlob } from './download';
 
@@ -17,6 +17,10 @@ export interface FileActions {
   newProject(): void;
   save(): void;
   load(): void;
+  /** Pick an .obj (and optionally its .mtl) and add it to empty layers. */
+  importObj(): void;
+  /** Download the model as .obj plus a .mtl of its materials. */
+  exportObj(): void;
   /** True if the model has changed since it was last saved or loaded. */
   isDirty(): boolean;
 }
@@ -29,6 +33,7 @@ export function createFileActions(
   state: ModelerState,
   display: DisplaySettings,
   input: HTMLInputElement,
+  objInput: HTMLInputElement,
   editor: EditorBridge,
   notify: (message: string, isError?: boolean) => void,
   onLoaded: () => void,
@@ -86,5 +91,42 @@ export function createFileActions(
     }
   });
 
-  return { newProject, save, load, isDirty };
+  const baseName = () => fileName.replace(/\.vmesh$/i, '');
+
+  const exportObjFiles = () => {
+    const base = baseName();
+    const { obj, mtl, polygons } = exportObj(state.layers, state.palette, `${base}.mtl`);
+    if (polygons === 0) return notify('Nothing to export: there are no polygons yet', true);
+    downloadBlob(`${base}.obj`, obj, 'text/plain');
+    downloadBlob(`${base}.mtl`, mtl, 'text/plain');
+    notify(`Exported ${base}.obj and ${base}.mtl (${polygons} polygons; textures are not included)`);
+  };
+
+  const MAX_OBJ_BYTES = 50 * 1024 * 1024;
+  objInput.addEventListener('change', async () => {
+    const files = [...(objInput.files ?? [])];
+    objInput.value = '';
+    const objFile = files.find((f) => /\.obj$/i.test(f.name));
+    const mtlFile = files.find((f) => /\.mtl$/i.test(f.name));
+    if (!objFile) return notify('Pick a .obj file (and its .mtl too, for colours)', true);
+    if (objFile.size > MAX_OBJ_BYTES) return notify(`${objFile.name} is too large (over 50 MB)`, true);
+    try {
+      const materials = mtlFile && mtlFile.size <= MAX_OBJ_BYTES ? parseMtl(await mtlFile.text()) : undefined;
+      const parsed = parseObj(await objFile.text(), state.palette, materials);
+      const placed = addMeshesToLayers(state, parsed.groups);
+      const count = parsed.groups.reduce((n, g) => n + g.mesh.polygons.length, 0);
+      const where = placed.layers.length === 1 ? `layer ${placed.layers[0]! + 1}` : `layers ${placed.layers.map((l) => l + 1).join(', ')}`;
+      const notes = [
+        parsed.skippedFaces ? `${parsed.skippedFaces} unusable faces skipped` : '',
+        parsed.ignoredLines ? `${parsed.ignoredLines} lines ignored (lines, points, curves)` : '',
+        placed.merged ? `${placed.merged} objects merged for lack of empty layers` : '',
+        !mtlFile ? 'no .mtl: surfaces are uncoloured' : '',
+      ].filter(Boolean);
+      notify(`Imported ${objFile.name}: ${count} polygons into ${where}${notes.length ? ` (${notes.join('; ')})` : ''}`);
+    } catch (err) {
+      notify(`Could not import ${objFile.name}: ${err instanceof ObjFormatError ? err.message : 'unexpected error'}`, true);
+    }
+  });
+
+  return { newProject, save, load, importObj: () => objInput.click(), exportObj: exportObjFiles, isDirty };
 }

@@ -246,5 +246,6 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .dropdown button[role='menuitem']:hover, .dropdown button[role='menuitem']:focus-visible {
   outline: none; color: var(--night); background: linear-gradient(90deg, var(--pink), var(--purple));
 }
+.dropdown .sep { height: 2px; margin: 3px 2px; background: linear-gradient(90deg, var(--pink), var(--cyan)); opacity: 0.55; }
 .dropdown kbd { font: 11px 'Courier New', monospace; color: var(--lo); }
 .dropdown button[role='menuitem']:hover kbd, .dropdown button[role='menuitem']:focus-visible kbd { color: var(--night); }
