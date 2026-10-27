@@ -66,3 +66,31 @@ button.active { background: var(--pink); border-color: var(--lo) var(--hi) var(-
   position: absolute; display: none; pointer-events: none; box-sizing: border-box;
   border: 1px dashed var(--cream); background: rgba(255, 251, 150, 0.12);
 }
+
+.workspace { position: relative; }
+.numeric {
+  position: absolute; top: 8px; right: 8px; z-index: 5; width: 232px; padding: 4px; box-sizing: border-box;
+  background: var(--panel); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+  box-shadow: 4px 4px 0 rgba(27, 15, 59, 0.55);
+}
+.numeric[hidden], .numeric [hidden] { display: none; }
+.numeric-title {
+  display: flex; justify-content: space-between; align-items: center; margin: -4px -4px 4px; padding: 2px 6px;
+  background: linear-gradient(90deg, var(--pink), var(--purple)); color: var(--night); font-weight: bold;
+}
+.numeric-title button { padding: 0 6px; line-height: 1.2; }
+.numeric-tabs { display: flex; gap: 2px; margin-bottom: 4px; }
+.numeric-tabs button { flex: 1; padding: 2px 4px; }
+.numeric-group { margin-bottom: 6px; }
+.numeric-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; color: var(--lo); font-weight: bold; font-size: 11px; }
+.numeric-heading button { padding: 0 6px; font-size: 11px; }
+.numeric-row { display: flex; gap: 4px; }
+.numeric-row label { display: flex; flex: 1; align-items: center; gap: 2px; font-weight: bold; }
+.numeric-row input {
+  width: 100%; min-width: 0; box-sizing: border-box; padding: 2px 3px; font: 12px 'Courier New', monospace;
+  background: var(--night); color: var(--mint); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo);
+}
+.numeric-row input:focus { outline: 1px solid var(--cyan); }
+.numeric-row input.invalid { color: #fff; background: #8a1f4a; }
+.numeric-actions { display: flex; gap: 4px; }
+.numeric-actions button { flex: 1; }

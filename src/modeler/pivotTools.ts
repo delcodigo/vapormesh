@@ -6,14 +6,14 @@ import type { ModelerState } from './state';
 const MIN_SIZE_RADIUS = 16;
 const MIN_SCALE = 0.001;
 
-/** Shared pivot capture: the centre of the affected points, held fixed for the whole drag. */
+/** Shared pivot capture: the manual pivot or the centre of the affected points, held fixed for the whole drag. */
 abstract class PivotDrag extends PointDrag {
   protected pivot: Vec3 = [0, 0, 0];
   protected pivotScreen = { x: 0, y: 0 };
   protected axis: Vec3 = [0, 0, 1];
 
   protected override start(view: ViewInfo): boolean {
-    const center = this.state.centerOf(this.ids);
+    const center = this.state.pivotFor(this.ids);
     if (!center) return false;
     this.pivot = center;
     this.state.dragPivot = center;

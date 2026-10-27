@@ -9,6 +9,7 @@ import {
   type SelectMode,
   type ToolName,
 } from '@/modeler';
+import { createNumericPanel } from '@/ui';
 import {
   MeshView,
   pickPoint,
@@ -52,6 +53,7 @@ app.innerHTML = `
     <div class="toolpanel">
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
+      <button data-action="numeric">Numeric</button>
       <div class="section">Select</div>
       <button data-action="all">All</button>
       <button data-action="invert">Invert</button>
@@ -82,7 +84,10 @@ toolButtons.forEach((b) =>
     state.setTool(state.activeTool === tool ? null : tool);
   }),
 );
+const numeric = createNumericPanel(state, app.querySelector('.workspace')!);
+const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const ACTIONS: Record<string, () => void> = {
+  numeric: () => numeric.toggle(),
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
   none: () => state.clearSelection(),
@@ -97,6 +102,7 @@ state.subscribe(() => {
   const { mesh, mode, selection, activeTool, history } = state;
   modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   toolButtons.forEach((b) => b.classList.toggle('active', b.dataset.tool === activeTool));
+  numericButton.classList.toggle('active', state.numericOp !== null);
   undoButton.disabled = !history.canUndo;
   redoButton.disabled = !history.canRedo;
   undoButton.title = history.undoLabel ?? '';
@@ -106,6 +112,8 @@ state.subscribe(() => {
 });
 
 window.addEventListener('keydown', (e) => {
+  // Typing in a numeric field must not trigger shortcuts (1/2 switch modes, space clears, Ctrl+Z undoes).
+  if (e.target instanceof HTMLInputElement) return;
   const mod = e.ctrlKey || e.metaKey;
   if (mod && e.key.toLowerCase() === 'z') {
     e.preventDefault();
@@ -124,6 +132,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     state.clearSelection();
   } else if (!mod) {
+    if (e.key.toLowerCase() === 'n') numeric.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }
 });

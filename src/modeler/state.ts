@@ -14,6 +14,10 @@ export class ModelerState {
   readonly history = new History();
   /** Pivot held fixed by a rotate/size drag in progress, so the marker doesn't follow the points. */
   dragPivot: Vec3 | null = null;
+  /** User-placed pivot for rotate/size. Null means "centre of what is being edited". */
+  customPivot: Vec3 | null = null;
+  /** Which tab the Numeric panel shows, or null when it is closed. */
+  numericOp: ToolName | null = null;
   readonly selectedPoints = new Set<number>();
   readonly selectedPolygons = new Set<number>();
   /** Bumped on every change so views know when to rebuild. */
@@ -39,12 +43,24 @@ export class ModelerState {
     this.selectedPoints.clear();
     this.selectedPolygons.clear();
     this.history.clear();
+    this.customPivot = null;
     this.changed();
   }
 
   setTool(tool: ToolName | null): void {
     if (tool === this.activeTool) return;
     this.activeTool = tool;
+    this.changed();
+  }
+
+  setPivot(pivot: Vec3 | null): void {
+    this.customPivot = pivot;
+    this.changed();
+  }
+
+  setNumericOp(op: ToolName | null): void {
+    if (op === this.numericOp) return;
+    this.numericOp = op;
     this.changed();
   }
 
@@ -137,9 +153,14 @@ export class ModelerState {
     return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
   }
 
-  /** Where rotate/size act from. */
+  /** Pivot for transforming these points: the user's, if placed, otherwise their bounding-box centre. */
+  pivotFor(ids: number[]): Vec3 | null {
+    return this.customPivot ?? this.centerOf(ids);
+  }
+
+  /** Where rotate/size act from right now. */
   pivot(): Vec3 | null {
-    return this.dragPivot ?? this.centerOf(this.affectedPoints());
+    return this.dragPivot ?? this.pivotFor(this.affectedPoints());
   }
 
   clearSelection(): void {
