@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Mesh, type UV } from '@/core';
-import { cornerKey, cornersInRect, pickCorner, snapUv, SNAP_ANGLE, uvCorners, UvDrag, weldGroup, type UvDragOptions } from './uvEdit';
+import { cornerKey, cornersInRect, pickCorner, snapUv, SNAP_ANGLE, uvCorners, UvDrag, weldGroup, weldIndex, type UvDragOptions } from './uvEdit';
+import { createBall } from './primitives';
 import { ModelerState } from './state';
 
 /** Two unit quads side by side sharing points 1-2, with continuous UVs across the shared edge, plus one without UVs. */
@@ -40,6 +41,25 @@ describe('corners', () => {
     m.polygons[1]!.uvs![0] = [0.7, 0.1];
     const corners = uvCorners(m, [0, 1]);
     expect(weldGroup(corners, corners.find((c) => c.polygon === 0 && c.corner === 1)!)).toEqual([cornerKey(0, 1)]);
+  });
+
+  it('gives the same weld groups with an index as without, for every corner', () => {
+    const m = strip();
+    m.polygons[1]!.uvs![0] = [0.7, 0.1]; // one split point among the welded ones
+    const corners = uvCorners(m, [0, 1]);
+    const index = weldIndex(corners);
+    for (const c of corners) expect(weldGroup(corners, c, index)).toEqual(weldGroup(corners, c));
+  });
+
+  it('box-selecting tens of thousands of corners stays quick (it used to be quadratic: seconds)', () => {
+    const big = createBall({ radius: [1, 1, 1], center: [0, 0, 0], sides: 128, segments: 96, axis: 'y' });
+    const corners = uvCorners(big, big.polygons.map((_, i) => i));
+    expect(corners.length).toBeGreaterThan(40000);
+    const index = weldIndex(corners);
+    const started = performance.now();
+    const keys = new Set(corners.flatMap((c) => weldGroup(corners, c, index)));
+    expect(keys.size).toBe(corners.length);
+    expect(performance.now() - started).toBeLessThan(1500);
   });
 
   it('picks the nearest corner within the radius, and none beyond it', () => {

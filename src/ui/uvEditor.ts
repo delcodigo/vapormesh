@@ -6,6 +6,7 @@ import {
   uvCorners,
   UvDrag,
   weldGroup,
+  weldIndex,
   type ModelerState,
   type UvCorner,
   type UvToolKind,
@@ -97,6 +98,7 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
   // --- what is shown ---
   let polygons: number[] = [];
   let corners: UvCorner[] = [];
+  let welds = new Map<number, UvCorner[]>(); // the corners by point, for fast weld groups
   let tooMany = 0;
   const selected = new Set<number>();
   let imageName = '';
@@ -209,6 +211,7 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
     tooMany = ids.length > MAX_SHOWN ? ids.length : 0;
     polygons = tooMany ? [] : ids;
     corners = uvCorners(state.mesh, polygons);
+    welds = weldIndex(corners);
     const alive = new Set(corners.map((c) => c.key));
     for (const key of selected) if (!alive.has(key)) selected.delete(key);
 
@@ -254,7 +257,7 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
     redraw();
   };
   /** A click or box picks every corner welded to the ones hit, so seams stay together. */
-  const withWelds = (hit: UvCorner[]) => [...new Set(hit.flatMap((c) => weldGroup(corners, c)))];
+  const withWelds = (hit: UvCorner[]) => [...new Set(hit.flatMap((c) => weldGroup(corners, c, welds)))];
 
   // --- pointer ---
   const local = (e: { clientX: number; clientY: number }): [number, number] => {

@@ -30,14 +30,25 @@ export function uvCorners(mesh: Mesh, polygons: number[]): UvCorner[] {
 
 const SAME = 1e-6;
 
+/** The corners grouped by the point of the model they belong to. Build it once and pass it to `weldGroup` when asking many times. */
+export function weldIndex(corners: UvCorner[]): Map<number, UvCorner[]> {
+  const byPoint = new Map<number, UvCorner[]>();
+  for (const c of corners) {
+    const list = byPoint.get(c.point);
+    if (list) list.push(c);
+    else byPoint.set(c.point, [c]);
+  }
+  return byPoint;
+}
+
 /**
  * Corners that are the same point of the model at the same place in the texture. They move together, so a seam that
- * is closed stays closed; a point that was split on purpose (different UVs) is a different group.
+ * is closed stays closed; a point that was split on purpose (different UVs) is a different group. Without an index it scans
+ * every corner, which is fine once; for a whole box of corners pass `weldIndex(corners)`.
  */
-export function weldGroup(corners: UvCorner[], of: UvCorner): number[] {
-  return corners
-    .filter((c) => c.point === of.point && Math.abs(c.u - of.u) < SAME && Math.abs(c.v - of.v) < SAME)
-    .map((c) => c.key);
+export function weldGroup(corners: UvCorner[], of: UvCorner, index?: Map<number, UvCorner[]>): number[] {
+  const candidates = index ? (index.get(of.point) ?? []) : corners;
+  return candidates.filter((c) => c.point === of.point && Math.abs(c.u - of.u) < SAME && Math.abs(c.v - of.v) < SAME).map((c) => c.key);
 }
 
 /** The corner nearest to a screen position, within `radius` pixels (the first, if several are equally near). */

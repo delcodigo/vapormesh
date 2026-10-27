@@ -1,5 +1,5 @@
 import { MAX_IMAGE_SIZE, MIN_IMAGE_SIZE, isValidImageSize, type IndexedImage } from './image';
-import { nearestIndex, PALETTE_SIZE, type Palette } from './palette';
+import { nearestIndex, type Palette } from './palette';
 
 /** A decoded picture: 4 bytes per pixel (r, g, b, a), row 0 at the top. */
 export interface RgbaImage {
@@ -118,6 +118,3 @@ export function convertToIndexed(src: RgbaImage, o: ConvertOptions): IndexedImag
   if (src.width !== o.width || src.height !== o.height) rgb = resample(rgb, src.width, src.height, o.width, o.height, o.resample);
   return { name: o.name, width: o.width, height: o.height, pixels: quantize(rgb, o.width, o.height, o.palette, o.match) };
 }
-
-/** True if a palette index is in range. (A PALETTE_SIZE re-export keeps callers from importing two modules.) */
-export const isPaletteIndex = (i: number) => Number.isInteger(i) && i >= 0 && i < PALETTE_SIZE;
