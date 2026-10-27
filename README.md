@@ -22,6 +22,22 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 Not yet: array/clone, lathe and smooth shift (the rest of Multiply), the texture painter, glTF export, Layout and cutscenes,
 the animator, the tracker.
 
+## The panels
+
+The left panel keeps the tools you reach for constantly (**Select, Move, Rotate, Size** and the **Snap** menu) at the top, and
+groups the rest in tabs, one at a time:
+
+| Tab | |
+|-----|---|
+| Create | Box, Ball, Disc, Cone |
+| Modify | Numeric, Position, and the deformers: Stretch, Drag, Magnet, Bend, Twist, Taper |
+| Multiply | Extrude, Bevel, Mirror, Knife, Boolean |
+| Pick | All, Invert, None, Connected, Grow, Shrink, Lasso; Hide, Hide Others, Unhide All |
+| Edit | Delete, Merge Points, Weld, Flip, Make Polygon, Triple |
+| Surface | Surfaces, Images, UV Editor, Palette |
+
+New, Load and Save are in the menu bar. Choosing a tool with its key shows its tab, and the last tab is remembered.
+
 ## Keys
 
 | Key | |

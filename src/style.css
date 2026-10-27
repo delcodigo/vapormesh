@@ -208,3 +208,12 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 
 .numeric.boolean { right: 8px; top: 40px; width: 232px; }
 .numeric.boolean .numeric-row select { width: 100%; }
+
+/* the left panel: the tools used all the time, then one tab of the rest at a time */
+.toolpanel { overflow-y: auto; }
+.toolpanel .quick { padding-bottom: 4px; border-bottom: 2px solid var(--lo); margin-bottom: 4px; }
+.toolpanel .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 4px; }
+.toolpanel .tabs button { margin: 0; padding: 1px 0; font-size: 11px; }
+.toolpanel .tabpage[hidden] { display: none; }
+.menubar .filebtns { display: inline-flex; gap: 2px; margin-left: 12px; align-self: center; }
+.menubar .filebtns button { padding: 0 8px; font-size: 11px; }

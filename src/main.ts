@@ -89,6 +89,20 @@ const VIEW_MODES: [ViewMode, string][] = [
 ];
 /** Single-key tool shortcuts. P flips between Point and Polygon mode. Q is selection: no tool, so drags draw a selection box. */
 const TOOL_KEYS: Record<string, ToolName | null> = { m: 'move', r: 'rotate', s: 'size', e: 'extrude', k: 'knife', q: null };
+type TabName = 'create' | 'modify' | 'multiply' | 'select' | 'edit' | 'surface';
+const TABS: [TabName, string][] = [
+  ['create', 'Create'],
+  ['modify', 'Modify'],
+  ['multiply', 'Multiply'],
+  ['select', 'Pick'],
+  ['edit', 'Edit'],
+  ['surface', 'Surface'],
+];
+/** The tab a drag tool lives on, so choosing it with a key shows its neighbours. Move, Rotate and Size are always visible. */
+const TOOL_TAB: Partial<Record<ToolName, TabName>> = {
+  stretch: 'modify', drag: 'modify', magnet: 'modify', bend: 'modify', twist: 'modify', taper: 'modify',
+  extrude: 'multiply', bevel: 'multiply', knife: 'multiply',
+};
 const SNAPS: [number, string][] = [
   [0, 'Off'],
   [0.05, '0.05'],
@@ -144,53 +158,57 @@ const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : n
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
-  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
+  <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="filebtns"><button data-action="new">New</button><button data-action="load" title="Ctrl+O">Load</button><button data-action="save" title="Ctrl+S">Save</button></span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
   <div class="workspace">
     <div class="toolpanel">
-      <div class="section">File</div>
-      <button data-action="new">New</button>
-      <button data-action="load" title="Ctrl+O">Load</button>
-      <button data-action="save" title="Ctrl+S">Save</button>
-      <div class="section">Position</div>
-      <button data-action="select" title="Selection: drag to select (Q)">Select</button>
-      ${TOOLS.map(([t, label]) => `<button data-tool="${t}" title="${label} (${label === 'Size' ? 'S' : label[0]})">${label}</button>`).join('')}
-      <button data-action="numeric">Numeric</button>
-      <button data-action="position" title="Show and edit where the selected points are (I)">Position</button>
-      <label class="snap" title="Moves and Drag snap to this grid"><span>Snap</span><select data-snap>${SNAPS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
-      <div class="section">Deform</div>
-      ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
-      <div class="section">Multiply</div>
-      ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}">${label}</button>`).join('')}
-      <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
-      <div class="section">Tools</div>
-      <button data-tool="knife" title="Drag a line across polygons to cut them along it; hold Shift for a horizontal or vertical slice (K)">Knife</button>
-      <button data-action="boolean" title="Add, subtract or intersect the solids on two layers">Boolean</button>
-      <div class="section">Create</div>
-      ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
-      <div class="section">Surface</div>
-      <button data-action="surface">Surfaces</button>
-      <button data-action="images">Images</button>
-      <button data-action="uv" title="U">UV Editor</button>
-      <button data-action="palette">Palette</button>
-      <div class="section">Select</div>
-      <button data-action="all">All</button>
-      <button data-action="invert">Invert</button>
-      <button data-action="none">None</button>
-      <button data-select="connected" title="Extend the selection to everything joined to it">Connected</button>
-      <button data-select="grow" title="Add the points or polygons next to the selection">Grow</button>
-      <button data-select="shrink" title="Remove the outer layer of the selection">Shrink</button>
-      <button data-action="lasso" title="Drag a freehand outline instead of a box to select">Lasso</button>
-      <div class="section">Display</div>
-      <button data-select="hide" title="Hide the selected polygons (in Point mode, those whose points are all selected)">Hide</button>
-      <button data-select="hideOthers" title="Hide everything except the selection">Hide Others</button>
-      <button data-select="unhide" title="Show everything again">Unhide All</button>
-      <div class="section">Edit</div>
-      <button data-edit="delete" title="Delete the selected points or polygons (Delete)">Delete</button>
-      <button data-edit="merge" title="Merge points that sit on top of each other: the selected ones, or all">Merge Points</button>
-      <button data-edit="weld" title="Weld the selected points into one, at their average">Weld</button>
-      <button data-edit="flip" title="Turn the selected polygons (or all) inside out">Flip</button>
-      <button data-edit="make" title="Make a polygon from the selected points, joined in the order you selected them (Shift-click)">Make Polygon</button>
-      <button data-edit="triple" title="Split the selected polygons (or all) into triangles">Triple</button>
+      <div class="quick">
+        <button data-action="select" title="Selection: drag to select (Q)">Select</button>
+        ${TOOLS.map(([t, label]) => `<button data-tool="${t}" title="${label} (${label === 'Size' ? 'S' : label[0]})">${label}</button>`).join('')}
+        <label class="snap" title="Moves, Drag, Magnet, Extrude and Size snap to this grid"><span>Snap</span><select data-snap>${SNAPS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+      </div>
+      <div class="tabs">${TABS.map(([t, label]) => `<button data-tab="${t}">${label}</button>`).join('')}</div>
+      <div class="tabpage" data-page="create">
+        ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
+      </div>
+      <div class="tabpage" data-page="modify">
+        <button data-action="numeric" title="Type exact Move, Rotate and Size values (N)">Numeric</button>
+        <button data-action="position" title="Show and edit where the selected points are (I)">Position</button>
+        <div class="section">Deform</div>
+        ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
+      </div>
+      <div class="tabpage" data-page="multiply">
+        ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first${t === 'extrude' ? ' (E)' : ''}">${label}</button>`).join('')}
+        <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
+        <button data-tool="knife" title="Drag a line across polygons to cut them along it; hold Shift for a horizontal or vertical slice (K)">Knife</button>
+        <button data-action="boolean" title="Add, subtract or intersect the solids on two layers">Boolean</button>
+      </div>
+      <div class="tabpage" data-page="select">
+        <button data-action="all">All</button>
+        <button data-action="invert">Invert</button>
+        <button data-action="none">None</button>
+        <button data-select="connected" title="Extend the selection to everything joined to it">Connected</button>
+        <button data-select="grow" title="Add the points or polygons next to the selection">Grow</button>
+        <button data-select="shrink" title="Remove the outer layer of the selection">Shrink</button>
+        <button data-action="lasso" title="Drag a freehand outline instead of a box to select">Lasso</button>
+        <div class="section">Display</div>
+        <button data-select="hide" title="Hide the selected polygons (in Point mode, those whose points are all selected)">Hide</button>
+        <button data-select="hideOthers" title="Hide everything except the selection">Hide Others</button>
+        <button data-select="unhide" title="Show everything again">Unhide All</button>
+      </div>
+      <div class="tabpage" data-page="edit">
+        <button data-edit="delete" title="Delete the selected points or polygons (Delete)">Delete</button>
+        <button data-edit="merge" title="Merge points that sit on top of each other: the selected ones, or all">Merge Points</button>
+        <button data-edit="weld" title="Weld the selected points into one, at their average">Weld</button>
+        <button data-edit="flip" title="Turn the selected polygons (or all) inside out">Flip</button>
+        <button data-edit="make" title="Make a polygon from the selected points, joined in the order you selected them (Shift-click)">Make Polygon</button>
+        <button data-edit="triple" title="Split the selected polygons (or all) into triangles">Triple</button>
+      </div>
+      <div class="tabpage" data-page="surface">
+        <button data-action="surface">Surfaces</button>
+        <button data-action="images">Images</button>
+        <button data-action="uv" title="U">UV Editor</button>
+        <button data-action="palette">Palette</button>
+      </div>
     </div>
     <div class="viewports">
       ${VIEWS.map(([, n]) => `<div class="viewport"><canvas></canvas><span class="label">${n}</span></div>`).join('')}
@@ -228,6 +246,33 @@ viewButtons.forEach((b) =>
   }),
 );
 showViewMode();
+const tabButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+const tabPages = [...app.querySelectorAll<HTMLElement>('[data-page]')];
+const showTab = (tab: TabName) => {
+  tabButtons.forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  tabPages.forEach((p) => (p.hidden = p.dataset.page !== tab));
+  try {
+    localStorage.setItem('vapormesh.tab', tab);
+  } catch {
+    /* private window or blocked storage: the tab just isn't remembered */
+  }
+};
+let remembered: string | null = null;
+try {
+  remembered = localStorage.getItem('vapormesh.tab');
+} catch {
+  /* as above */
+}
+showTab(TABS.find(([t]) => t === remembered)?.[0] ?? 'create');
+tabButtons.forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab as TabName)));
+let lastTool = state.activeTool;
+state.subscribe(() => {
+  if (state.activeTool !== lastTool) {
+    lastTool = state.activeTool;
+    const tab = lastTool && TOOL_TAB[lastTool];
+    if (tab) showTab(tab);
+  }
+});
 const undoButton = app.querySelector<HTMLButtonElement>('#undo')!;
 const redoButton = app.querySelector<HTMLButtonElement>('#redo')!;
 
