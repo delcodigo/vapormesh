@@ -1,6 +1,7 @@
 import { boxProjectPolygon, DEFAULT_TEXTURE_SIZE, type Mesh, type Vec3 } from '@/core';
 import { AddPrimitiveCommand } from './create';
 import { extrude, type ExtrudeDirection } from './extrude';
+import { mirror, type MirrorAxis } from './mirror';
 import {
   cloneGeometry,
   deletePoints,
@@ -8,6 +9,7 @@ import {
   extractPolygons,
   findCoincident,
   flipPolygons,
+  MERGE_TOLERANCE,
   mergePoints,
   triangulate,
   type Geometry,
@@ -23,9 +25,6 @@ export interface EditResult {
 const fail = (message: string): EditResult => ({ ok: false, message });
 const done = (message: string): EditResult => ({ ok: true, message });
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
-/** Points within this distance are the same point to Merge Points. */
-export const MERGE_TOLERANCE = 0.0001;
 
 export interface Selection {
   points: number[];
@@ -240,4 +239,27 @@ export function extrudeSelection(state: ModelerState, settings: ExtrudeSettings,
   });
   state.execute(new ReplaceGeometryCommand(label, state, result.geometry, { points: result.capPoints, polygons: ids }));
   return done(`${PAST[label]} ${plural(ids.length, 'polygon')}`);
+}
+
+// --- mirror ----------------------------------------------------------------------------------------------------------
+
+export interface MirrorSettings {
+  axis: MirrorAxis;
+  position: number;
+  merge: boolean;
+}
+
+/**
+ * Reflect the selected polygons (or the whole layer, if none are selected) across a plane and add the copies. The copies
+ * end up selected, so you can move, flip or delete them straight away.
+ */
+export function mirrorSelection(state: ModelerState, settings: MirrorSettings): EditResult {
+  if (!Number.isFinite(settings.position)) return fail('Type a number for the position');
+  const ids = targetPolygons(state);
+  if (ids.length === 0) return fail('There is nothing to mirror');
+  const result = mirror(geometryOf(state), new Set(ids), settings);
+  if (result.newPolygons.length === 0) return fail('Everything lies in the mirror plane, so there is nothing to copy');
+  state.execute(new ReplaceGeometryCommand('Mirror', state, result.geometry, { points: result.newPoints, polygons: result.newPolygons }));
+  const note = result.skipped ? ` (${plural(result.skipped, 'polygon')} in the plane not copied)` : '';
+  return done(`Mirrored ${plural(result.newPolygons.length, 'polygon')} across ${settings.axis.toUpperCase()} = ${settings.position}${note}`);
 }

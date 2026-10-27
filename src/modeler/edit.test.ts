@@ -7,6 +7,7 @@ import {
   extrudeSelection,
   flipSelection,
   makePolygon,
+  mirrorSelection,
   mergeCoincidentPoints,
   pasteClipboard,
   triangulateSelection,
@@ -397,5 +398,59 @@ describe('extrudeSelection', () => {
     expect(extrudeSelection(s, { distance: 0, inset: 0, direction: 'normal' }).message).toBe('Set a distance or an inset');
     expect(extrudeSelection(s, { distance: NaN, inset: 0, direction: 'normal' }).message).toBe('Type a number for the distance and the inset');
     expect(s.history.canUndo).toBe(false);
+  });
+});
+
+describe('mirrorSelection', () => {
+  const across = (position: number, merge = true) => ({ axis: 'x' as const, position, merge });
+
+  it('mirrors the whole layer when nothing is selected, welds the seam, selects the copies, and undoes', () => {
+    const s = fresh(); // a unit box centred on the origin: its +x face lies in the plane x = 0.5
+    const before = snapshot(s.mesh);
+    const r = mirrorSelection(s, across(0.5));
+    expect(r).toEqual({ ok: true, message: 'Mirrored 5 polygons across X = 0.5 (1 polygon in the plane not copied)' });
+    expect(counts(s)).toEqual([12, 11]);
+    expect([...s.selectedPolygons].sort((a, b) => a - b)).toEqual([6, 7, 8, 9, 10]);
+    expect(s.history.undoLabel).toBe('Mirror');
+
+    s.undo();
+    expect(snapshot(s.mesh)).toBe(before);
+    expect(s.selectedPolygons.size).toBe(0);
+    s.redo();
+    expect(counts(s)).toEqual([12, 11]);
+  });
+
+  it('without merge it copies everything, duplicate seam included', () => {
+    const s = fresh();
+    expect(mirrorSelection(s, across(0.5, false)).message).toBe('Mirrored 6 polygons across X = 0.5');
+    expect(counts(s)).toEqual([16, 12]);
+  });
+
+  it('mirrors only the selected polygons', () => {
+    const s = fresh();
+    s.setMode('polygons');
+    s.applySelection([0, 1], 'replace');
+    mirrorSelection(s, across(2, false));
+    expect(counts(s)).toEqual([8 + 8, 6 + 2]);
+  });
+
+  it('selects the new points in Point mode', () => {
+    const s = fresh();
+    mirrorSelection(s, across(0.5));
+    expect(s.selectedPoints.size).toBe(4);
+  });
+
+  it('says why it cannot, and records nothing', () => {
+    const s = fresh();
+    expect(mirrorSelection(s, across(NaN)).message).toBe('Type a number for the position');
+    expect(mirrorSelection(new ModelerState(), across(0)).message).toBe('There is nothing to mirror');
+    const flat = new ModelerState();
+    flat.mesh.addPoint([0, 0, 0]);
+    flat.mesh.addPoint([0, 1, 0]);
+    flat.mesh.addPoint([0, 1, 1]);
+    flat.mesh.addPolygon([0, 1, 2]);
+    expect(mirrorSelection(flat, across(0)).message).toBe('Everything lies in the mirror plane, so there is nothing to copy');
+    expect(s.history.canUndo).toBe(false);
+    expect(flat.history.canUndo).toBe(false);
   });
 });

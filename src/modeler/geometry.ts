@@ -1,5 +1,8 @@
 import { Mesh, type Polygon, type UV, type Vec3 } from '@/core';
 
+/** Points within this distance are the same point to Merge Points and to Mirror's seam. */
+export const MERGE_TOLERANCE = 0.0001;
+
 /** The part of a mesh that structural edits rewrite. Surfaces are left alone. */
 export interface Geometry {
   points: Vec3[];

@@ -28,6 +28,7 @@ import {
 import {
   createExtrudePanel,
   createFileActions,
+  createMirrorPanel,
   createImagesPanel,
   type EditorBridge,
   type ExtrudePanel,
@@ -109,6 +110,7 @@ app.innerHTML = `
       <button data-action="numeric">Numeric</button>
       <div class="section">Multiply</div>
       ${MULTIPLY_TOOLS.map(([t, label]) => `<button data-tool="${t}" title="Drag in a view; select polygons first">${label}</button>`).join('')}
+      <button data-action="mirror" title="Reflect polygons across a plane">Mirror</button>
       <div class="section">Create</div>
       ${PRIMITIVE_NAMES.map((n) => `<button data-create="${n}">${PRIMITIVES[n].label}</button>`).join('')}
       <div class="section">Surface</div>
@@ -194,11 +196,13 @@ const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surfac
 const imagesButton = app.querySelector<HTMLButtonElement>('[data-action="images"]')!;
 const uvButton = app.querySelector<HTMLButtonElement>('[data-action="uv"]')!;
 const paletteButton = app.querySelector<HTMLButtonElement>('[data-action="palette"]')!;
+const mirrorButton = app.querySelector<HTMLButtonElement>('[data-action="mirror"]')!;
 const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"]')!;
 const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
 const images = createImagesPanel(state, workspace, () => imagesButton.classList.toggle('active', images.isOpen()));
 const uvEditor = createUvEditor(state, workspace, () => uvButton.classList.toggle('active', uvEditor.isOpen()));
 const paletteEditor = createPaletteEditor(state, workspace, () => paletteButton.classList.toggle('active', paletteEditor.isOpen()));
+const mirrorPanel = createMirrorPanel(state, workspace, () => mirrorButton.classList.toggle('active', mirrorPanel.isOpen()));
 const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
 const message = app.querySelector<HTMLElement>('.message')!;
@@ -263,6 +267,7 @@ const ACTIONS: Record<string, () => void> = {
   images: () => images.toggle(),
   uv: () => uvEditor.toggle(),
   palette: () => paletteEditor.toggle(),
+  mirror: () => mirrorPanel.toggle(),
   render: () => renderSettings.toggle(),
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),

@@ -176,3 +176,6 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .toolpanel { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--lo) var(--panel); }
 .toolpanel button { margin-bottom: 2px; padding-top: 1px; padding-bottom: 1px; }
 .toolpanel .section { margin: 6px 0 3px; }
+
+.numeric.mirror { right: 232px; top: 260px; width: 214px; }
+.numeric.mirror .numeric-row select { width: 100%; }
