@@ -13,7 +13,13 @@ import {
   type SelectMode,
   type ToolName,
 } from '@/modeler';
-import { createNumericPanel, createPrimitivePanel, createRenderPanel, createSurfacePanel } from '@/ui';
+import {
+  createFileActions,
+  createNumericPanel,
+  createPrimitivePanel,
+  createRenderPanel,
+  createSurfacePanel,
+} from '@/ui';
 import {
   defaultDisplay,
   MeshView,
@@ -67,6 +73,10 @@ app.innerHTML = `
   <div class="menubar"><span class="logo">ＶＡＰＯＲＭＥＳＨ</span><span class="jp">ヴェイパーメッシュ</span><span class="menu">Modeler</span><span class="menu">Layout</span><span class="layers">${Array.from({ length: LAYER_COUNT }, (_, i) => `<button class="layer" data-layer="${i}" title="Layer ${i + 1}"></button>`).join('')}</span></div>
   <div class="workspace">
     <div class="toolpanel">
+      <div class="section">File</div>
+      <button data-action="new">New</button>
+      <button data-action="load" title="Ctrl+O">Load</button>
+      <button data-action="save" title="Ctrl+S">Save</button>
       <div class="section">Position</div>
       ${TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       <button data-action="numeric">Numeric</button>
@@ -86,6 +96,7 @@ app.innerHTML = `
   <div class="bottombar">
     ${MODES.map(([m, label]) => `<button data-mode="${m}">${label}</button>`).join('')}
     <span class="readout"></span>
+    <span class="message" role="status"></span>
     <span class="spacer"></span>
     <button data-action="render" title="Retro render settings">Retro…</button>
     <span class="group" title="How the Perspective view draws">
@@ -94,7 +105,8 @@ app.innerHTML = `
     <span class="spacer"></span>
     <button id="redo">Redo</button>
     <button id="undo">Undo</button>
-  </div>`;
+  </div>
+  <input type="file" id="file-input" accept=".vmesh" hidden>`;
 
 const readout = app.querySelector<HTMLElement>('.readout')!;
 const modeButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-mode]')];
@@ -138,7 +150,23 @@ const renderButton = app.querySelector<HTMLButtonElement>('[data-action="render"
 const surfaces = createSurfacePanel(state, workspace, () => surfaceButton.classList.toggle('active', surfaces.isOpen()));
 const renderSettings = createRenderPanel(display.retro, workspace, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
+const message = app.querySelector<HTMLElement>('.message')!;
+let messageTimer = 0;
+const notify = (text: string, isError = false) => {
+  message.textContent = text;
+  message.classList.toggle('error', isError);
+  clearTimeout(messageTimer);
+  messageTimer = window.setTimeout(() => (message.textContent = ''), isError ? 8000 : 3500);
+};
+const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, notify, showViewMode);
+window.addEventListener('beforeunload', (e) => {
+  if (files.isDirty()) e.preventDefault(); // makes the browser ask before closing with unsaved work
+});
+
 const ACTIONS: Record<string, () => void> = {
+  new: () => files.newProject(),
+  load: () => files.load(),
+  save: () => files.save(),
   numeric: () => numeric.toggle(),
   surface: () => surfaces.toggle(),
   render: () => renderSettings.toggle(),
@@ -174,7 +202,13 @@ window.addEventListener('keydown', (e) => {
   // Typing in a numeric field must not trigger shortcuts (1/2 switch modes, space clears, Ctrl+Z undoes).
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
   const mod = e.ctrlKey || e.metaKey;
-  if (mod && e.key.toLowerCase() === 'z') {
+  if (mod && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    files.save();
+  } else if (mod && e.key.toLowerCase() === 'o') {
+    e.preventDefault();
+    files.load();
+  } else if (mod && e.key.toLowerCase() === 'z') {
     e.preventDefault();
     if (e.shiftKey) state.redo();
     else state.undo();

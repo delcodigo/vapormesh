@@ -8,8 +8,14 @@ export interface Command {
 export class History {
   private undoStack: Command[] = [];
   private redoStack: Command[] = [];
+  private _revision = 0;
 
   constructor(private readonly limit = 200) {}
+
+  /** Changes whenever the model's edit history does (record, undo, redo, clear), and never repeats: compare it to know if there is unsaved work. */
+  get revision(): number {
+    return this._revision;
+  }
 
   get canUndo(): boolean {
     return this.undoStack.length > 0;
@@ -32,6 +38,7 @@ export class History {
     this.undoStack.push(cmd);
     if (this.undoStack.length > this.limit) this.undoStack.shift();
     this.redoStack.length = 0;
+    this._revision++;
   }
 
   undo(): Command | null {
@@ -39,6 +46,7 @@ export class History {
     if (!cmd) return null;
     cmd.undo();
     this.redoStack.push(cmd);
+    this._revision++;
     return cmd;
   }
 
@@ -47,11 +55,13 @@ export class History {
     if (!cmd) return null;
     cmd.redo();
     this.undoStack.push(cmd);
+    this._revision++;
     return cmd;
   }
 
   clear(): void {
     this.undoStack.length = 0;
     this.redoStack.length = 0;
+    this._revision++;
   }
 }

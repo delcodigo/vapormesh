@@ -48,6 +48,18 @@ export class ModelerState {
     return i < 0 ? null : i;
   }
 
+  /** Replace the whole model (e.g. when opening a file). Missing layers become empty; history is cleared. */
+  loadLayers(layers: Mesh[], activeLayer: number): void {
+    for (let i = 0; i < LAYER_COUNT; i++) this.layers[i] = layers[i] ?? new Mesh();
+    this.activeLayer = Math.min(Math.max(activeLayer, 0), LAYER_COUNT - 1);
+    this.selectedPoints.clear();
+    this.selectedPolygons.clear();
+    this.customPivot = null;
+    this.dragPivot = null;
+    this.history.clear();
+    this.changed();
+  }
+
   setActiveLayer(layer: number): void {
     if (layer === this.activeLayer || layer < 0 || layer >= LAYER_COUNT) return;
     this.activeLayer = layer;

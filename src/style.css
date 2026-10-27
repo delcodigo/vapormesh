@@ -125,3 +125,5 @@ button.layer.active { background: var(--pink); }
 }
 .numeric input[type='text'].invalid { color: #fff; background: #8a1f4a; }
 .numeric .numeric-row { align-items: center; }
+.bottombar .message { margin-left: 8px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38vw; }
+.bottombar .message.error { color: #8a1f4a; font-weight: bold; }
