@@ -18,6 +18,8 @@ export interface FileActions {
   newProject(): void;
   save(): void;
   load(): void;
+  /** Open a project from bytes already in hand. Returns false, changing nothing, if they do not decode. */
+  openProject(name: string, data: ArrayBuffer, options?: { untitled?: boolean }): boolean;
   /** Pick an .obj (and optionally its .mtl) and add it to empty layers. */
   importObj(): void;
   /** Download the model as .obj plus a .mtl of its materials. */
@@ -40,6 +42,8 @@ export function createFileActions(
   editor: EditorBridge,
   notify: (message: string, isError?: boolean) => void,
   onLoaded: () => void,
+  /** Called after an OBJ has been added, so the views can be framed on it: imported models can be any size. */
+  onImported: () => void = () => {},
 ): FileActions {
   let fileName = `untitled${EXTENSION}`;
   let savedRevision = state.history.revision;
@@ -74,24 +78,33 @@ export function createFileActions(
     if (confirmDiscard()) input.click();
   };
 
-  input.addEventListener('change', async () => {
-    const file = input.files?.[0];
-    input.value = ''; // let the same file be picked again later
-    if (!file) return;
+  /**
+   * Put a project's bytes into the editor. Nothing is touched if they do not decode. `untitled` keeps the name "untitled" and
+   * says nothing, for a project the app opens by itself at startup (Save then offers a fresh name).
+   */
+  const openProject = (name: string, data: ArrayBuffer, options: { untitled?: boolean } = {}): boolean => {
     try {
-      const project = decodeProject(await file.arrayBuffer());
+      const project = decodeProject(data);
       state.loadLayers(project.layers, project.activeLayer, { palette: project.palette, images: project.images });
       display.mode = project.display.mode;
       Object.assign(display.retro, project.display.retro);
       if (project.editor) editor.apply(project.editor);
-      fileName = file.name.toLowerCase().endsWith(EXTENSION) ? file.name : file.name + EXTENSION;
+      if (!options.untitled) fileName = name.toLowerCase().endsWith(EXTENSION) ? name : name + EXTENSION;
       savedRevision = state.history.revision;
       onLoaded();
-      notify(`Loaded ${file.name}`);
+      if (!options.untitled) notify(`Loaded ${name}`);
+      return true;
     } catch (err) {
       // Nothing has been changed: decoding finishes before the model is touched.
-      notify(`Could not load ${file.name}: ${err instanceof ProjectFormatError ? err.message : 'unexpected error'}`, true);
+      notify(`Could not load ${name}: ${err instanceof ProjectFormatError ? err.message : 'unexpected error'}`, true);
+      return false;
     }
+  };
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.value = ''; // let the same file be picked again later
+    if (file) openProject(file.name, await file.arrayBuffer());
   });
 
   const baseName = () => fileName.replace(/\.vmesh$/i, '');
@@ -114,6 +127,7 @@ export function createFileActions(
       const materials = mtlFile ? parseMtl(await mtlFile.text()) : undefined;
       const parsed = parseObj(text, state.palette, materials);
       const placed = addMeshesToLayers(state, parsed.groups);
+      onImported();
       const count = parsed.groups.reduce((n, g) => n + g.mesh.polygons.length, 0);
       const where = placed.layers.length === 1 ? `layer ${placed.layers[0]! + 1}` : `layers ${placed.layers.map((l) => l + 1).join(', ')}`;
       const notes = [
@@ -160,5 +174,5 @@ export function createFileActions(
     await importObjText(objFile.name, text, mtlFile);
   });
 
-  return { newProject, save, load, importObj: () => objInput.click(), exportObj: exportObjFiles, isDirty };
+  return { newProject, save, load, openProject, importObj: () => objInput.click(), exportObj: exportObjFiles, isDirty };
 }

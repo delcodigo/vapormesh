@@ -3,7 +3,7 @@ import { defaultPalette, type Palette, type Vec3 } from '@/core';
 import { THEME } from '@/theme';
 import { constrainToAxis, type Projector, type ScreenPoint } from './pick';
 import type { DisplaySettings } from './retro';
-import { DEFAULT_VIEW, normalizeView, relevantView, VIEW_LIMITS, type ViewState } from './viewState';
+import { DEFAULT_VIEW, fitView, normalizeView, relevantView, VIEW_LIMITS, type Bounds, type ViewState } from './viewState';
 import { RetroPass } from './retroPass';
 
 export type ViewKind = 'perspective' | 'top' | 'face' | 'left';
@@ -182,6 +182,13 @@ export class Viewport implements Projector {
 
   resetView(): void {
     this.setView({});
+  }
+
+  /** Centre the camera on a box and zoom until all of it shows, at this view's own shape. */
+  frame(box: Bounds): void {
+    const current = normalizeView({ target: [this.target.x, this.target.y, this.target.z], orthoSize: this.orthoSize, radius: this.radius, theta: this.theta, phi: this.phi });
+    const fov = this.camera instanceof THREE.PerspectiveCamera ? this.camera.fov : 50;
+    this.setView(fitView(this.kind, box, this.width / Math.max(this.height, 1), fov, current));
   }
 
   // --- rubber band -------------------------------------------------------

@@ -7,6 +7,8 @@ is not an engine and has no runtime.
 > Inspired by LightWave 3D. VaporMesh is an independent project and is not
 > affiliated with or endorsed by NewTek or Vizrt.
 
+![VaporMesh opening on its mascot, a Greek bust with sunglasses: the Top, Face and Left views as wireframe, and the Perspective view as a dithered, palette-mapped retro render](screenshots/startup.png)
+
 ## Status
 
 The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.md`](docs/SPEC.md), with its order.
@@ -52,6 +54,7 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 | `Q` `M` `R` `S` | Select, Move, Rotate, Size |
 | `E` `K` | Extrude, Knife (hold `Shift` while dragging the knife for a horizontal or vertical cut) |
 | `1` `2` `P` | Point mode, Polygon mode, switch between them |
+| `A` | Fit: centre every view on the whole model and zoom to show all of it (also the **Fit** button; done automatically after opening the startup model and importing an OBJ) |
 | `N` `I` `U` | Numeric panel, Position panel, UV editor |
 | `Space` | Clear the selection |
 | `F` | Make a polygon (a face) from the selected points, in the order you picked them |
@@ -73,6 +76,10 @@ npm run typecheck  # tsc, including the tests
 npm test           # unit tests (vitest)
 npm run build      # typecheck + production build
 ```
+
+The editor opens on the mascot, [`mascot.vmesh`](mascot.vmesh), a Greek bust with sunglasses. It is an ordinary project file: to change
+what the editor opens on, replace it (it is read at build time and served with the app). Add `?blank` to the address to open on a
+plain box instead. If the startup file cannot be loaded the box is shown, with the reason in the status bar.
 
 It needs a browser with WebGL 2.
 

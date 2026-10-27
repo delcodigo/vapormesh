@@ -1,5 +1,6 @@
 import './style.css';
-import { assignAutoUvs } from '@/core';
+import { assignAutoUvs, Mesh } from '@/core';
+import mascotUrl from '../mascot.vmesh?url';
 import {
   box,
   LAYER_COUNT,
@@ -67,6 +68,7 @@ import {
   ShadedView,
   pickPoint,
   pickPolygon,
+  boundsOf,
   pointsInLasso,
   pointsInRect,
   polygonsInLasso,
@@ -138,7 +140,9 @@ const TOOLS: [ToolName, string][] = [
 
 const demoBox = box(1, 1, 1);
 assignAutoUvs(demoBox);
-const state = new ModelerState(demoBox);
+// The editor opens on the mascot (mascot.vmesh); `?blank` opens on the plain box instead, which is handy for testing.
+const startBlank = new URLSearchParams(location.search).has('blank');
+const state = new ModelerState(startBlank ? demoBox : new Mesh());
 const display = defaultDisplay();
 // ?view=shaded opens straight into a shaded Perspective view
 const requested = new URLSearchParams(location.search).get('view');
@@ -239,6 +243,7 @@ app.innerHTML = `
     <span class="readout"></span>
     <span class="message" role="status"></span>
     <span class="spacer"></span>
+    <button data-action="fit" title="Centre the model in every view and zoom to show all of it (A)">Fit</button>
     <button data-action="render" title="Retro render settings">Retro…</button>
     <span class="group" title="How the Perspective view draws">
       ${VIEW_MODES.map(([m, label]) => `<button data-view="${m}">${label}</button>`).join('')}
@@ -374,7 +379,29 @@ const editorBridge: EditorBridge = {
     for (const { vp } of viewports) vp.resetView();
   },
 };
-const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, app.querySelector<HTMLInputElement>('#obj-input')!, app.querySelector<HTMLInputElement>('#mtl-input')!, createMtlPrompt(document.body), editorBridge, notify, showViewMode);
+const files = createFileActions(state, display, app.querySelector<HTMLInputElement>('#file-input')!, app.querySelector<HTMLInputElement>('#obj-input')!, app.querySelector<HTMLInputElement>('#mtl-input')!, createMtlPrompt(document.body), editorBridge, notify, showViewMode, () => fitAll());
+
+/** Centre every view on the whole model and zoom to show all of it; with nothing to show, back to the default cameras. */
+function fitAll(): void {
+  const box = boundsOf(state.layers.flatMap((layer) => layer.points));
+  for (const { vp } of viewports) {
+    if (box) vp.frame(box);
+    else vp.resetView();
+  }
+}
+
+/** Open the mascot, or the demo box if it cannot be loaded, so the editor never starts empty and broken. */
+async function openStartupProject(): Promise<void> {
+  try {
+    const response = await fetch(mascotUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (files.openProject('mascot.vmesh', await response.arrayBuffer(), { untitled: true })) return void fitAll();
+  } catch (err) {
+    notify(`Could not load the startup model: ${err instanceof Error ? err.message : 'unexpected error'}`, true);
+  }
+  state.setMesh(demoBox);
+}
+if (!startBlank) void openStartupProject();
 window.addEventListener('beforeunload', (e) => {
   if (files.isDirty()) e.preventDefault(); // makes the browser ask before closing with unsaved work
 });
@@ -419,6 +446,7 @@ const ACTIONS: Record<string, () => void> = {
   all: () => state.selectAll(),
   invert: () => state.invertSelection(),
   none: () => state.clearSelection(),
+  fit: () => fitAll(),
   select: () => state.setTool(null),
   lasso: () => state.setLasso(!state.lasso),
 };
@@ -511,6 +539,7 @@ window.addEventListener('keydown', (e) => {
     if (!e.altKey && Object.hasOwn(TOOL_KEYS, key)) state.setTool(TOOL_KEYS[key]!);
     if (key === 'p') state.setMode(state.mode === 'points' ? 'polygons' : 'points');
     if (key === 'f') runEdit('make');
+    if (key === 'a') fitAll();
     if (key === 'n') numeric.toggle();
     if (key === 'i') positionPanel.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
@@ -585,4 +614,4 @@ function frame() {
 frame();
 
 // Browser tests read and set the model through this; it is not in the production build.
-if (import.meta.env.DEV) (window as unknown as { __vapormesh: unknown }).__vapormesh = { state };
+if (import.meta.env.DEV) (window as unknown as { __vapormesh: unknown }).__vapormesh = { state, viewports, fitAll };
