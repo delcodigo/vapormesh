@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Mesh, Vec3 } from '@/core';
+import { faceNormal, type Mesh, type Vec3 } from '@/core';
 import { defaultValues, PRIMITIVE_NAMES, PRIMITIVES, type PrimitiveName } from './create';
-import { createBall, createBox, createCone, createDisc } from './primitives';
+import { createBall, createBox, createCone, createDisc, createQuad } from './primitives';
 
 /** Every edge shared by exactly two polygons, running in opposite directions: closed and consistently wound. */
 function expectWatertight(m: Mesh) {
@@ -84,10 +84,23 @@ describe('primitives', () => {
 });
 
 describe('primitive specs', () => {
-  it.each(PRIMITIVE_NAMES)('%s builds a closed, outward mesh from its defaults', (name: PrimitiveName) => {
+  it.each(PRIMITIVE_NAMES.filter((n) => n !== 'quad'))('%s builds a closed, outward mesh from its defaults', (name: PrimitiveName) => {
     const m = PRIMITIVES[name].build(defaultValues(name));
     expectWatertight(m);
     const c = m.points.reduce<Vec3>((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map((x) => x / m.points.length);
     expectOutward(m, name === 'cone' ? [0, 0, 0] : (c as Vec3));
+  });
+});
+
+describe('createQuad', () => {
+  it.each(['x', 'y', 'z'] as const)('is one polygon of the given size facing +%s', (axis) => {
+    const m = createQuad({ width: 2, height: 4, center: [1, 2, 3], axis });
+    expect(m.polygons).toHaveLength(1);
+    expect(m.polygons[0]!.points).toHaveLength(4);
+    const n = faceNormal(m.polygons[0]!.points.map((i) => m.points[i]!));
+    const k = { x: 0, y: 1, z: 2 }[axis];
+    expect(n[k]).toBeGreaterThan(0);
+    expect(n.filter((c, i) => i !== k && Math.abs(c) > 1e-9)).toHaveLength(0);
+    expect(Math.abs(n[k]!) / 2).toBeCloseTo(8); // area 2 x 4
   });
 });

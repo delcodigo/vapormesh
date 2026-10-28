@@ -1,9 +1,9 @@
 import { Mesh, type MeshSize } from '@/core';
 import type { Command } from './history';
-import { createBall, createBox, createCone, createDisc, type Axis } from './primitives';
+import { createBall, createBox, createCone, createDisc, createQuad, type Axis } from './primitives';
 import type { ModelerState } from './state';
 
-export type PrimitiveName = 'box' | 'ball' | 'disc' | 'cone';
+export type PrimitiveName = 'box' | 'quad' | 'ball' | 'disc' | 'cone';
 
 /**
  * How a dialog field is entered and validated:
@@ -42,6 +42,16 @@ export const PRIMITIVES: Record<PrimitiveName, PrimitiveSpec> = {
       { key: 'segments', label: 'Segments', kind: 'int3', defaults: [1, 1, 1] },
     ],
     build: (v) => createBox({ size: v3(v.size!), center: v3(v.center!), segments: v3(v.segments!) }),
+  },
+  quad: {
+    label: 'Quad',
+    fields: [
+      { key: 'width', label: 'Width', kind: 'size', defaults: [1] },
+      { key: 'height', label: 'Height', kind: 'size', defaults: [1] },
+      center,
+      { ...axis, label: 'Faces', defaults: [2] },
+    ],
+    build: (v) => createQuad({ width: v.width![0]!, height: v.height![0]!, center: v3(v.center!), axis: AXES[v.axis![0]!]! }),
   },
   ball: {
     label: 'Ball',

@@ -212,6 +212,8 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .toolpanel { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--lo) var(--panel); }
 .toolpanel button { margin-bottom: 2px; padding-top: 1px; padding-bottom: 1px; }
 .toolpanel .section { margin: 6px 0 3px; }
+.toolpanel .axes { display: flex; gap: 2px; margin-bottom: 2px; }
+.toolpanel .axes button { flex: 1; padding: 2px 0; }
 .toolpanel .snap { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; color: var(--lo); font-size: 11px; }
 .toolpanel .snap select { flex: 1; min-width: 0; font: 12px 'Courier New', monospace; background: var(--night); color: var(--mint); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
 

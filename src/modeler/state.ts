@@ -249,6 +249,19 @@ export class ModelerState {
     this.changed();
   }
 
+  /** Axes (X, Y, Z) that Move, Rotate and Size are limited to. None set means free. */
+  axes: [boolean, boolean, boolean] = [false, false, false];
+
+  toggleAxis(axis: 0 | 1 | 2): void {
+    this.axes = this.axes.map((on, k) => (k === axis ? !on : on)) as [boolean, boolean, boolean];
+    this.changed();
+  }
+
+  /** The indices of the axes the transform tools are limited to; empty when they are free. */
+  lockedAxes(): number[] {
+    return [0, 1, 2].filter((k) => this.axes[k]);
+  }
+
   /** Whether box selections are drawn freehand (a lasso) instead of as a rectangle. */
   lasso = false;
 

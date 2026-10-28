@@ -79,3 +79,29 @@ describe('SizeTool', () => {
     near(s.mesh.points[1]!, [-0.5, -0.5, 0.5]); // untouched
   });
 });
+
+describe('axis locks', () => {
+  it('Move only applies the locked components, Size only scales the locked axes', () => {
+    const s = new ModelerState(box());
+    s.toggleAxis(0);
+    const tool = new SizeTool(s);
+    tool.begin(view);
+    tool.move(drag(100, 0, 200, 0)); // twice as far from the pivot
+    tool.end();
+    near(s.mesh.points[0]!, [-1, -0.5, -0.5]);
+  });
+
+  it('Rotate turns about a single locked axis lying in the view by the cursor crossing it', () => {
+    const s = new ModelerState(box());
+    s.toggleAxis(0); // X runs across the Face view
+    const tool = new RotateTool(s);
+    tool.begin(view);
+    tool.move(drag(0, 0, 0, 180)); // 180px down, across X: 90 degrees at 0.5/px
+    tool.end();
+    const p = s.mesh.points[0]!;
+    expect(p[0]).toBeCloseTo(-0.5, 9);
+    expect(Math.hypot(p[1], p[2])).toBeCloseTo(Math.SQRT1_2, 9);
+    expect(Math.abs(p[1]) + Math.abs(p[2])).toBeGreaterThan(0); // y and z swapped
+    expect(Math.abs(p[1] - -0.5) + Math.abs(p[2] - -0.5)).toBeGreaterThan(0.5);
+  });
+});

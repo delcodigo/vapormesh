@@ -76,3 +76,16 @@ describe('MoveTool', () => {
     expect(s.history.canRedo).toBe(false);
   });
 });
+
+describe('MoveTool axis lock', () => {
+  it('moves only along the locked axes', () => {
+    const s = new ModelerState(box());
+    const start = snapshot(s);
+    s.toggleAxis(1);
+    const tool = new MoveTool(s);
+    tool.begin(ortho);
+    tool.move(at([3, 4, 0]));
+    tool.end();
+    expect(s.mesh.points[0]).toEqual([start[0]![0], start[0]![1] + 4, start[0]![2]]);
+  });
+});

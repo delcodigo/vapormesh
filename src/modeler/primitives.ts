@@ -1,4 +1,4 @@
-import { assignAutoUvs, defaultSurface, Mesh, type Vec3 } from '@/core';
+import { assignAutoUvs, defaultSurface, faceNormal, Mesh, type Vec3 } from '@/core';
 
 export function box(w = 1, h = 1, d = 1): Mesh {
   const m = new Mesh();
@@ -153,3 +153,30 @@ export function createCone({ radius, height, center, sides, segments, axis }: Ro
   m.addPolygon([...rings[segments - 1]!]);
   return place(m, axis, [radius, height, radius], [1, 1, 1], center);
 }
+
+export interface QuadParams {
+  width: number;
+  height: number;
+  center: Vec3;
+  /** The axis the quad faces along (+axis). Width runs along X, or Z for an X-facing quad; height along Y, or Z for a Y-facing quad. */
+  axis: Axis;
+}
+
+/** A single four-sided polygon facing +axis. */
+export function createQuad({ width, height, center, axis }: QuadParams): Mesh {
+  const m = new Mesh();
+  const [u, v]: [0 | 1 | 2, 0 | 1 | 2] = axis === 'x' ? [2, 1] : axis === 'y' ? [0, 2] : [0, 1];
+  const corner = (su: number, sv: number): number => {
+    const p: Vec3 = [...center];
+    p[u] += (su * width) / 2;
+    p[v] += (sv * height) / 2;
+    return m.addPoint(p);
+  };
+  const ids = [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)];
+  const facing = faceNormal(ids.map((i) => m.points[i]!))[AXES_INDEX[axis]]!;
+  m.addPolygon(facing > 0 ? ids : ids.reverse());
+  assignAutoUvs(m);
+  return m;
+}
+
+const AXES_INDEX: Record<Axis, 0 | 1 | 2> = { x: 0, y: 1, z: 2 };

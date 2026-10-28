@@ -201,6 +201,7 @@ app.innerHTML = `
       <div class="quick">
         <button data-action="select" title="Selection: drag to select (Q)">Select</button>
         ${TOOLS.map(([t, label]) => `<button data-tool="${t}" title="${label} (${label === 'Size' ? 'S' : label[0]})">${label}</button>`).join('')}
+        <span class="axes" title="Limit Move, Rotate and Size to an axis (X, Y, Z keys). Rotate turns about a single locked axis">${(['X', 'Y', 'Z'] as const).map((a, i) => `<button data-axis="${i}" title="Only along ${a} (${a})">${a}</button>`).join('')}</span>
         <label class="snap" title="Moves, Drag, Magnet, Extrude and Size snap to this grid"><span>Snap</span><select data-snap>${SNAPS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
       </div>
       <div class="tabs">${TABS.map(([t, label]) => `<button data-tab="${t}">${label}</button>`).join('')}</div>
@@ -344,6 +345,8 @@ try {
 } catch {}
 const facingButton = app.querySelector<HTMLButtonElement>('[data-action="facing"]')!;
 facingButton.classList.toggle('active', hideHidden);
+const axisButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-axis]')];
+axisButtons.forEach((b) => b.addEventListener('click', () => state.toggleAxis(Number(b.dataset.axis) as 0 | 1 | 2)));
 const lassoButton = app.querySelector<HTMLButtonElement>('[data-action="lasso"]')!;
 const selectButton = app.querySelector<HTMLButtonElement>('[data-action="select"]')!;
 const positionButton = app.querySelector<HTMLButtonElement>('[data-action="position"]')!;
@@ -543,6 +546,7 @@ state.subscribe(() => {
   toolButtons.forEach((b) => b.classList.toggle('active', b.dataset.tool === activeTool));
   numericButton.classList.toggle('active', state.numericOp !== null);
   lassoButton.classList.toggle('active', state.lasso);
+  axisButtons.forEach((b, k) => b.classList.toggle('active', state.axes[k]!));
   selectButton.classList.toggle('active', activeTool === null);
   snapSelect.value = String(state.snap);
   primitiveButtons.forEach((b) => b.classList.toggle('active', b.dataset.create === state.createOp));
@@ -611,6 +615,7 @@ window.addEventListener('keydown', (e) => {
       notify(r.message, !r.ok);
     }
     if (key === 'a') fitAll();
+    if (!e.altKey && (key === 'x' || key === 'y' || key === 'z')) state.toggleAxis(({ x: 0, y: 1, z: 2 } as const)[key]);
     if (key === 'n') numeric.toggle();
     if (key === 'i') positionPanel.toggle();
     if (key === 'j') statsPanel.toggle();
