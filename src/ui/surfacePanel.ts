@@ -7,6 +7,7 @@ import {
   cloneSurface,
   applyAutoUv,
   EditSurfaceCommand,
+  renameSurface,
   type ModelerState,
 } from '@/modeler';
 
@@ -37,6 +38,11 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     <div class="numeric-title"><span>Surface</span><button data-act="close" title="Close">×</button></div>
     <div class="numeric-group"><select data-f="which"></select></div>
     <div class="numeric-group">
+      <div class="numeric-heading"><span>Name</span></div>
+      <div class="numeric-row"><input type="text" data-f="name" maxlength="64" spellcheck="false" title="Rename this surface (Enter)"></div>
+      <div class="msg" data-msg role="status"></div>
+    </div>
+    <div class="numeric-group">
       <div class="slider-row"><span class="name">Color</span><output data-o="colorIndex" class="wide"></output></div>
       <canvas class="palette pick" data-f="colorIndex" title="Pick a colour from the project palette"></canvas>
       ${SLIDERS.map(([k, label]) => `<div class="slider-row"><span class="name">${label}</span><input type="range" min="0" max="100" step="1" data-f="${k}"><output data-o="${k}"></output></div>`).join('')}
@@ -66,6 +72,8 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
   const wrap = field<HTMLSelectElement>('wrap');
   const angle = field<HTMLInputElement>('smoothingAngle');
   const newName = field<HTMLInputElement>('newName');
+  const nameField = field<HTMLInputElement>('name');
+  const nameMsg = el.querySelector<HTMLElement>('[data-msg]')!;
   const sliders = Object.fromEntries(SLIDERS.map(([k]) => [k, field<HTMLInputElement>(k)])) as Record<SliderKey, HTMLInputElement>;
   const out = (k: string) => el.querySelector<HTMLElement>(`[data-o="${k}"]`)!;
 
@@ -90,6 +98,9 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     // Names come from project files, so never put them into HTML.
     which.replaceChildren(...state.mesh.surfaces.map((x, i) => new Option(x.name, String(i))));
     which.value = String(index);
+    if (nameField !== document.activeElement || nameField.value === committed.name) nameField.value = s.name;
+    nameField.classList.remove('invalid');
+    nameMsg.textContent = '';
     pickedColor = s.colorIndex;
     showColor();
     for (const [k] of SLIDERS) {
@@ -172,7 +183,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
   // live preview while a control is being dragged
   el.addEventListener('input', (e) => {
     const t = e.target as HTMLElement;
-    if (!t.dataset.f || t.dataset.f === 'which' || t.dataset.f === 'newName') return;
+    if (!t.dataset.f || t.dataset.f === 'which' || t.dataset.f === 'newName' || t.dataset.f === 'name') return;
     preview();
   });
 
@@ -182,6 +193,16 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     if (t.dataset.f === 'which') {
       index = Number(which.value);
       reload();
+      return;
+    }
+    if (t.dataset.f === 'name') {
+      const result = renameSurface(state, index, nameField.value);
+      // the same name again is not worth a complaint; anything else wrong is shown and the old name stays
+      const quiet = result.ok || result.message === 'That is already its name';
+      nameField.classList.toggle('invalid', !quiet);
+      nameMsg.textContent = quiet ? '' : result.message;
+      nameMsg.classList.toggle('error', !quiet);
+      if (quiet) reload();
       return;
     }
     if (!t.dataset.f || t.dataset.f === 'newName') return;
@@ -226,6 +247,14 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     if (act) actions[act]!();
   });
   newName.addEventListener('keydown', (e) => e.key === 'Enter' && actions.new!());
+  nameField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') nameField.blur(); // leaving the field commits it, whichever way you leave
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      nameField.value = committed.name;
+      nameField.blur();
+    }
+  });
 
   state.subscribe(() => {
     if (!el.hidden && !own) reload();

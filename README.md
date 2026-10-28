@@ -16,7 +16,7 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 | Done | |
 |------|---|
 | Modeling | Box, ball, disc and cone; move, rotate, size, a numeric panel and a live position readout; extrude, bevel, array/clone, lathe, mirror; stretch, drag, magnet, bend, twist, taper; knife; boolean between layers; select connected, grow, shrink, lasso, grid snap, hide; delete, merge, weld, flip, make polygon, triple; cut, copy and paste; ten layers |
-| Surfaces and textures | Per-surface colour (from the palette), diffuse, luminosity, specular, smoothing and angle; indexed images, PNG import, per-corner UVs, a UV editor with projections |
+| Surfaces and textures | Per-surface name (renameable, undoable), colour (from the palette), diffuse, luminosity, specular, smoothing and angle; indexed images, PNG import, per-corner UVs, a UV editor with projections |
 | Palette | One 256-colour palette per project, a palette editor, `.gpl` and `.act` import and export, palettes from pictures |
 | Look | A retro Shaded view: low resolution, nearest-neighbour upscaling, ordered dither, mapped to the project palette |
 | Projects | Save and load `.vmesh` files, with undo for everything ([format](docs/FORMAT.md)). Import and export Wavefront `.obj` (with a `.mtl` of colours) |
