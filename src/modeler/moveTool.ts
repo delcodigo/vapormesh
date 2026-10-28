@@ -4,7 +4,7 @@ import { snapOffset } from './selectTools';
 import type { ModelerState } from './state';
 
 /**
- * Drags points by a world-space offset. Like LightWave, with nothing selected it moves the whole object. With grid snapping
+ * Drags points by a world-space offset (the viewport only starts it when something is selected; the tool itself moves the whole object if not). With grid snapping
  * on, the offset moves in whole grid steps.
  */
 export class MoveTool extends PointDrag {

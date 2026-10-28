@@ -175,7 +175,10 @@ const dragTools: Record<ToolName, DragTool> = {
   // the tool reports what it did through the status line, which is declared further down
   knife: new KnifeTool(state, () => knifePanel!.options(), (r) => notify(r.message, !r.ok)),
 };
-const activeDragTool = () => (state.activeTool ? dragTools[state.activeTool] : null);
+/** Move, Rotate and Size act on the selection; with nothing selected their drags select instead of transforming the whole object. */
+const SELECTION_TOOLS = ['move', 'rotate', 'size'];
+let selectingInstead = false;
+const activeDragTool = () => (state.activeTool && !selectingInstead ? dragTools[state.activeTool] : null);
 
 const app = document.getElementById('app')!;
 app.innerHTML = `
@@ -625,12 +628,13 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
   vp.dragHandler = {
     // With no tool active, ortho drags draw a selection box.
     get rubberBand() {
-      return state.activeTool === null || state.activeTool === 'knife';
+      return activeDragTool() === null || state.activeTool === 'knife';
     },
     get bandShape() {
       return state.activeTool === 'knife' ? ('line' as const) : state.lasso ? ('lasso' as const) : ('box' as const);
     },
     begin: (v, e, press) => {
+      selectingInstead = !!state.activeTool && SELECTION_TOOLS.includes(state.activeTool) && state.selection.size === 0;
       const tool = activeDragTool();
       // Shift-drag pans, except with the knife, where it straightens the line
       return tool ? (!e.shiftKey || state.activeTool === 'knife') && tool.begin(v, press) : v.isOrtho;
@@ -640,8 +644,12 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
       const tool = activeDragTool();
       if (tool) tool.end(i);
       else boxSelect(vp, i);
+      selectingInstead = false;
     },
-    cancel: () => activeDragTool()?.cancel(),
+    cancel: () => {
+      activeDragTool()?.cancel();
+      selectingInstead = false;
+    },
   };
   return { vp, view, shaded };
 });

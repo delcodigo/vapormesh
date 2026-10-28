@@ -27,7 +27,8 @@ the animator, the tracker.
 ## The panels
 
 The left panel keeps the tools you reach for constantly (**Select, Move, Rotate, Size** and the **Snap** menu) at the top, and
-groups the rest in tabs, one at a time:
+groups the rest in tabs, one at a time. Move, Rotate and Size act on what is selected; with nothing selected, dragging in a view draws a
+selection box (and clicking picks) instead of transforming the whole object.
 
 | Tab | |
 |-----|---|
