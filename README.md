@@ -56,6 +56,8 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 
 ## Keys
 
+The **Keys** button (bottom bar, or `?`) shows a cheat sheet of them over the workspace; click anywhere to close it.
+
 **Hide hidden** (bottom bar) draws only the lines and points the model does not cover in each view, so the far side stops cluttering the wireframe. It is remembered. Box and lasso selection still reach points on the hidden side.
 
 **Axis locks** (X, Y, Z buttons above Snap, or the `X` `Y` `Z` keys) limit Move, Rotate and Size to the axes you switch on; none on means free. Move keeps only those components, Size scales only along them, and Rotate turns about a single locked axis (swept around the pivot if the axis points out of the view, otherwise by dragging across it).

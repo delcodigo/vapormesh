@@ -21,3 +21,4 @@ export * from './mirrorPanel';
 export * from './mtlPrompt';
 export * from './knifePanel';
 export * from './booleanPanel';
+export * from './cheatSheet';

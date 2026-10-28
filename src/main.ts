@@ -51,6 +51,7 @@ import {
   createPositionPanel,
   createReferencePanel,
   createStatsPanel,
+  createCheatSheet,
   createBooleanPanel,
   createFileActions,
   createKnifePanel,
@@ -271,6 +272,7 @@ app.innerHTML = `
     <button data-action="fit" title="Centre the model in every view and zoom to show all of it (A)">Fit</button>
     <button data-action="facing" title="Hide the lines and points the model covers, so the far side does not clutter the wireframe">Hide hidden</button>
     <button data-action="render" title="Retro render settings">Retro…</button>
+    <button data-action="keys" title="Show a cheat sheet of the keys (?; click anywhere to close it)">Keys</button>
     <span class="group" title="How the Perspective view draws">
       ${VIEW_MODES.map(([m, label]) => `<button data-view="${m}">${label}</button>`).join('')}
     </span>
@@ -357,6 +359,7 @@ const positionPanel = createPositionPanel(state, app.querySelector('.workspace')
 positionButton.classList.add('active');
 const statsButton = app.querySelector<HTMLButtonElement>('[data-action="stats"]')!;
 const statsPanel = createStatsPanel(state, app.querySelector('.workspace')!, () => statsButton.classList.toggle('active', statsPanel.isOpen()));
+const cheatSheet = createCheatSheet(app.querySelector('.workspace')!, app.querySelector('[data-action="keys"]')!);
 const referenceButton = app.querySelector<HTMLButtonElement>('[data-action="reference"]')!;
 const referencePanel = createReferencePanel(
   app.querySelector('.workspace')!,
@@ -489,6 +492,7 @@ const ACTIONS: Record<string, () => void> = {
   numeric: () => numeric.toggle(),
   position: () => positionPanel.toggle(),
   stats: () => statsPanel.toggle(),
+  keys: () => cheatSheet.toggle(),
   reference: () => referencePanel.toggle(),
   surface: () => surfaces.toggle(),
   images: () => images.toggle(),
@@ -629,6 +633,7 @@ window.addEventListener('keydown', (e) => {
     if (key === 'n') numeric.toggle();
     if (key === 'i') positionPanel.toggle();
     if (key === 'j') statsPanel.toggle();
+    if (key === '?') cheatSheet.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }

@@ -277,3 +277,16 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .numeric.dialog { position: static; width: 340px; box-shadow: 5px 5px 0 var(--night), 0 0 24px rgba(1, 205, 254, 0.5); }
 .dialog .dialog-body { padding: 8px 6px; line-height: 1.4; }
 .dialog .numeric-actions { justify-content: flex-end; }
+
+.cheatsheet {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 20; padding: 8px 12px; box-sizing: border-box;
+  max-height: calc(100% - 16px); overflow: auto; background: var(--panel); border: 2px solid;
+  border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: 4px 4px 0 rgba(27, 15, 59, 0.55);
+}
+.cheatsheet[hidden] { display: none; }
+.cheatsheet-title { font-weight: bold; margin-bottom: 4px; }
+.cheatsheet-title span { margin-left: 12px; font-weight: normal; color: var(--lo); }
+.cheatsheet h3 { margin: 6px 0 2px; font-size: 11px; color: var(--lo); }
+.cheatsheet dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 12px; margin: 0; }
+.cheatsheet dt { font-weight: bold; white-space: nowrap; }
+.cheatsheet dd { margin: 0; }
