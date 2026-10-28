@@ -12,6 +12,7 @@ export * from './download';
 export * from './deformPanel';
 export * from './extrudePanel';
 export * from './positionPanel';
+export * from './statsPanel';
 export * from './arrayPanel';
 export * from './lathePanel';
 export * from './menus';

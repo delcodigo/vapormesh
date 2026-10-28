@@ -49,6 +49,7 @@ import {
   createMtlPrompt,
   setupMenus,
   createPositionPanel,
+  createStatsPanel,
   createBooleanPanel,
   createFileActions,
   createKnifePanel,
@@ -209,6 +210,7 @@ app.innerHTML = `
       <div class="tabpage" data-page="modify">
         <button data-action="numeric" title="Type exact Move, Rotate and Size values (N)">Numeric</button>
         <button data-action="position" title="Show and edit where the selected points are (I)">Position</button>
+        <button data-action="stats" title="Show the size of the selection, or of the layer, and type a new size (J)">Stats</button>
         <div class="section">Deform</div>
         ${DEFORM_TOOLS.map(([t, label]) => `<button data-tool="${t}">${label}</button>`).join('')}
       </div>
@@ -347,6 +349,8 @@ const selectButton = app.querySelector<HTMLButtonElement>('[data-action="select"
 const positionButton = app.querySelector<HTMLButtonElement>('[data-action="position"]')!;
 const positionPanel = createPositionPanel(state, app.querySelector('.workspace')!, () => positionButton.classList.toggle('active', positionPanel.isOpen()));
 positionButton.classList.add('active');
+const statsButton = app.querySelector<HTMLButtonElement>('[data-action="stats"]')!;
+const statsPanel = createStatsPanel(state, app.querySelector('.workspace')!, () => statsButton.classList.toggle('active', statsPanel.isOpen()));
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
@@ -472,6 +476,7 @@ const ACTIONS: Record<string, () => void> = {
   exportObj: () => files.exportObj(),
   numeric: () => numeric.toggle(),
   position: () => positionPanel.toggle(),
+  stats: () => statsPanel.toggle(),
   surface: () => surfaces.toggle(),
   images: () => images.toggle(),
   uv: () => uvEditor.toggle(),
@@ -608,6 +613,7 @@ window.addEventListener('keydown', (e) => {
     if (key === 'a') fitAll();
     if (key === 'n') numeric.toggle();
     if (key === 'i') positionPanel.toggle();
+    if (key === 'j') statsPanel.toggle();
     if (e.key.toLowerCase() === 'u') uvEditor.toggle();
     for (const [m, , key] of MODES) if (e.key === key) state.setMode(m);
   }

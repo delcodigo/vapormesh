@@ -33,7 +33,7 @@ selection box (and clicking picks) instead of transforming the whole object.
 | Tab | |
 |-----|---|
 | Create | Box, Ball, Disc, Cone |
-| Modify | Numeric, Position, and the deformers: Stretch, Drag, Magnet, Bend, Twist, Taper |
+| Modify | Numeric, Position, Stats, and the deformers: Stretch, Drag, Magnet, Bend, Twist, Taper |
 | Multiply | Extrude, Bevel, Array, Lathe, Mirror, Knife, Boolean |
 | Pick | All, Invert, None, Connected, Grow, Shrink, Lasso |
 | Show | Hide, Hide Others, Unhide All (polygons); Solo Layer, Show Layers |
@@ -57,6 +57,8 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 ## Keys
 
 **Hide hidden** (bottom bar) draws only the lines and points the model does not cover in each view, so the far side stops cluttering the wireframe. It is remembered. Box and lasso selection still reach points on the hidden side.
+
+**Stats** (Modify tab, `J`) shows the size of the selection, or of the whole layer when nothing is selected, with its point and polygon counts. Type a new X, Y or Z and it scales about its centre; *Keep proportions* scales the other axes with it. One undo step; flat axes cannot be scaled.
 
 Each orthographic view has a side menu in its corner (Top, Bottom, Face, Back, Left, Right), so any of the three can look from the opposite side or from another axis; pan and zoom are kept. The choice is not saved with the project.
 
