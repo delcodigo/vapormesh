@@ -22,20 +22,41 @@ function uniqueEdges(mesh: Mesh): number[] {
   return out;
 }
 
+/** The visible polygons as a triangle fan each, for filling the depth buffer. */
+function fanPositions(mesh: Mesh): number[] {
+  const out: number[] = [];
+  mesh.polygons.forEach(({ points }, pi) => {
+    if (mesh.hidden.has(pi)) return;
+    for (let i = 1; i < points.length - 1; i++) out.push(...mesh.points[points[0]!]!, ...mesh.points[points[i]!]!, ...mesh.points[points[i + 1]!]!);
+  });
+  return out;
+}
+
 /** Draws a ModelerState's mesh as wireframe + points + selection highlight. One instance per viewport. */
 export class MeshView {
   readonly group = new THREE.Group();
-  private built = -1;
+  private built = '';
+  /** Lines and points behind a polygon are not drawn. */
+  private occlude = false;
 
   constructor(private state: ModelerState) {}
 
-  /** Rebuild if the state changed since the last call. */
-  update(): void {
-    if (this.built === this.state.version) return;
-    this.built = this.state.version;
+  /** Rebuild if the state or the `occlude` choice changed since the last call. With `occlude`, only what the model does not cover is drawn. */
+  update(occlude = false): void {
+    const key = `${this.state.version}|${occlude}`;
+    if (this.built === key) return;
+    this.built = key;
+    this.occlude = occlude;
     this.clear();
 
     const { mesh, mode, selectedPoints, selectedPolygons } = this.state;
+    if (occlude) {
+      const hull: number[] = [];
+      this.state.layers.forEach((layer, i) => {
+        if (i === this.state.activeLayer || !this.state.isLayerHidden(i)) hull.push(...fanPositions(layer));
+      });
+      this.addHull(hull);
+    }
     this.state.layers.forEach((layer, i) => {
       if (i !== this.state.activeLayer && !this.state.isLayerHidden(i)) this.addLines(uniqueEdges(layer), THEME.backgroundWire, 0);
     });
@@ -74,7 +95,7 @@ export class MeshView {
         transparent: true,
         opacity: 0.28,
         side: THREE.DoubleSide,
-        depthTest: false,
+        depthTest: this.occlude,
       });
       this.add(new THREE.Mesh(geo, mat), 1);
     }
@@ -114,18 +135,33 @@ export class MeshView {
     this.group.add(obj);
   }
 
+  /** Invisible geometry that only writes depth, pushed back a little so edges lying on a surface still show. */
+  private addHull(pos: number[]): void {
+    if (!pos.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const mat = new THREE.MeshBasicMaterial({
+      colorWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+    this.add(new THREE.Mesh(geo, mat), -1);
+  }
+
   private addLines(pos: number[], color: number, order: number): void {
     if (!pos.length) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    this.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, depthTest: false })), order);
+    this.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, depthTest: this.occlude })), order);
   }
 
   private addPoints(pos: number[], color: number, size: number, order: number): void {
     if (!pos.length) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({ color, size, sizeAttenuation: false, depthTest: false });
+    const mat = new THREE.PointsMaterial({ color, size, sizeAttenuation: false, depthTest: this.occlude });
     this.add(new THREE.Points(geo, mat), order);
   }
 }

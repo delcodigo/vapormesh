@@ -263,6 +263,7 @@ app.innerHTML = `
     <span class="message" role="status"></span>
     <span class="spacer"></span>
     <button data-action="fit" title="Centre the model in every view and zoom to show all of it (A)">Fit</button>
+    <button data-action="facing" title="Hide the lines and points the model covers, so the far side does not clutter the wireframe">Hide hidden</button>
     <button data-action="render" title="Retro render settings">Retro…</button>
     <span class="group" title="How the Perspective view draws">
       ${VIEW_MODES.map(([m, label]) => `<button data-view="${m}">${label}</button>`).join('')}
@@ -335,6 +336,12 @@ deformPanel = createDeformPanel(state, app.querySelector('.workspace')!);
 lathePanel = createLathePanel(state, app.querySelector('.workspace')!);
 extrudePanel = createExtrudePanel(state, app.querySelector('.workspace')!);
 knifePanel = createKnifePanel(state, app.querySelector('.workspace')!);
+let hideHidden = false;
+try {
+  hideHidden = localStorage.getItem('vapormesh.hideHidden') === 'true';
+} catch {}
+const facingButton = app.querySelector<HTMLButtonElement>('[data-action="facing"]')!;
+facingButton.classList.toggle('active', hideHidden);
 const lassoButton = app.querySelector<HTMLButtonElement>('[data-action="lasso"]')!;
 const selectButton = app.querySelector<HTMLButtonElement>('[data-action="select"]')!;
 const positionButton = app.querySelector<HTMLButtonElement>('[data-action="position"]')!;
@@ -477,6 +484,13 @@ const ACTIONS: Record<string, () => void> = {
   invert: () => state.invertSelection(),
   none: () => state.clearSelection(),
   fit: () => fitAll(),
+  facing: () => {
+    hideHidden = !hideHidden;
+    facingButton.classList.toggle('active', hideHidden);
+    try {
+      localStorage.setItem('vapormesh.hideHidden', String(hideHidden));
+    } catch {}
+  },
   select: () => state.setTool(null),
   lasso: () => state.setLasso(!state.lasso),
 };
@@ -665,7 +679,7 @@ state.changed();
 
 function frame() {
   for (const { vp, view, shaded } of viewports) {
-    view.update();
+    view.update(hideHidden);
     vp.palette = state.palette;
     if (shaded && display.mode !== 'wire') shaded.update();
     vp.resize();
