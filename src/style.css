@@ -111,6 +111,8 @@ button.active { background: var(--pink); border-color: var(--lo) var(--hi) var(-
 button.layer { width: 14px; height: 14px; padding: 0; border-width: 2px; background: var(--hi); }
 button.layer.filled { background: var(--cyan); }
 button.layer.active { background: var(--pink); }
+/* a hidden layer: hollow, with a slash through it */
+button.layer.off { background: transparent; border-style: dashed; opacity: 0.55; background-image: linear-gradient(135deg, transparent 44%, var(--lo) 46% 54%, transparent 56%); }
 .bottombar .group { display: flex; gap: 2px; }
 
 /* surface + render panels: stacked so they don't cover each other or the other dialogs */

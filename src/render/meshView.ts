@@ -37,7 +37,7 @@ export class MeshView {
 
     const { mesh, mode, selectedPoints, selectedPolygons } = this.state;
     this.state.layers.forEach((layer, i) => {
-      if (i !== this.state.activeLayer) this.addLines(uniqueEdges(layer), THEME.backgroundWire, 0);
+      if (i !== this.state.activeLayer && !this.state.isLayerHidden(i)) this.addLines(uniqueEdges(layer), THEME.backgroundWire, 0);
     });
     const edges = new Set<string>();
     const edgePos: number[] = [];

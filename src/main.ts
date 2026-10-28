@@ -13,6 +13,10 @@ import {
   LatheTool,
   growSelection,
   hideSelection,
+  showAllLayers,
+  soloLayer,
+  toggleHidden,
+  toggleLayerHidden,
   selectConnected,
   shrinkSelection,
   unhideAll,
@@ -97,12 +101,13 @@ const VIEW_MODES: [ViewMode, string][] = [
 ];
 /** Single-key tool shortcuts. P flips between Point and Polygon mode. Q is selection: no tool, so drags draw a selection box. */
 const TOOL_KEYS: Record<string, ToolName | null> = { m: 'move', r: 'rotate', s: 'size', e: 'extrude', k: 'knife', q: null };
-type TabName = 'create' | 'modify' | 'multiply' | 'select' | 'edit' | 'surface';
+type TabName = 'create' | 'modify' | 'multiply' | 'select' | 'show' | 'edit' | 'surface';
 const TABS: [TabName, string][] = [
   ['create', 'Create'],
   ['modify', 'Modify'],
   ['multiply', 'Multiply'],
   ['select', 'Pick'],
+  ['show', 'Show'],
   ['edit', 'Edit'],
   ['surface', 'Surface'],
 ];
@@ -214,10 +219,16 @@ app.innerHTML = `
         <button data-select="grow" title="Add the points or polygons next to the selection">Grow</button>
         <button data-select="shrink" title="Remove the outer layer of the selection">Shrink</button>
         <button data-action="lasso" title="Drag a freehand outline instead of a box to select">Lasso</button>
-        <div class="section">Display</div>
-        <button data-select="hide" title="Hide the selected polygons (in Point mode, those whose points are all selected)">Hide</button>
-        <button data-select="hideOthers" title="Hide everything except the selection">Hide Others</button>
-        <button data-select="unhide" title="Show everything again">Unhide All</button>
+      </div>
+      <div class="tabpage" data-page="show">
+        <div class="section">Polygons</div>
+        <button data-select="hide" title="Hide the selected polygons; in Point mode, those whose points are all selected (H)">Hide</button>
+        <button data-select="hideOthers" title="Hide everything except the selection (Shift+H)">Hide Others</button>
+        <button data-select="unhide" title="Show every hidden polygon again (H with nothing selected)">Unhide All</button>
+        <div class="section">Layers</div>
+        <button data-select="solo" title="Hide every other layer, to look at this one alone">Solo Layer</button>
+        <button data-select="showLayers" title="Show every hidden layer again">Show Layers</button>
+        <div class="hint">Shift-click a layer square (top right) to hide or show that layer.</div>
       </div>
       <div class="tabpage" data-page="edit">
         <button data-edit="delete" title="Delete the selected points or polygons (Delete)">Delete</button>
@@ -332,7 +343,14 @@ primitiveButtons.forEach((b) =>
   }),
 );
 const layerButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-layer]')];
-layerButtons.forEach((b, i) => b.addEventListener('click', () => state.setActiveLayer(i)));
+layerButtons.forEach((b, i) =>
+  b.addEventListener('click', (e) => {
+    // Shift-click hides or shows a layer; a plain click goes to it (which also shows it)
+    if (!e.shiftKey) return state.setActiveLayer(i);
+    const r = toggleLayerHidden(state, i);
+    notify(r.message, !r.ok);
+  }),
+);
 
 const workspace = app.querySelector<HTMLElement>('.workspace')!;
 const surfaceButton = app.querySelector<HTMLButtonElement>('[data-action="surface"]')!;
@@ -365,10 +383,14 @@ const editorBridge: EditorBridge = {
     selectMode: state.mode,
     customPivot: state.customPivot,
     views: Object.fromEntries(viewports.map(({ vp }) => [vp.kind, vp.getView()])),
+    hiddenLayers: [...state.hiddenLayers].sort((a, b) => a - b),
   }),
   apply: (e) => {
     state.setMode(e.selectMode);
     state.setPivot(e.customPivot);
+    state.hiddenLayers.clear();
+    for (const i of e.hiddenLayers ?? []) if (i !== state.activeLayer) state.hiddenLayers.add(i);
+    state.changed();
     for (const { vp } of viewports) {
       const view = e.views[vp.kind];
       if (view) vp.setView(view);
@@ -383,7 +405,7 @@ const files = createFileActions(state, display, app.querySelector<HTMLInputEleme
 
 /** Centre every view on the whole model and zoom to show all of it; with nothing to show, back to the default cameras. */
 function fitAll(): void {
-  const box = boundsOf(state.layers.flatMap((layer) => layer.points));
+  const box = boundsOf(state.layers.flatMap((layer, i) => (state.isLayerHidden(i) ? [] : layer.points)));
   for (const { vp } of viewports) {
     if (box) vp.frame(box);
     else vp.resetView();
@@ -457,6 +479,8 @@ const SELECT_ACTIONS: Record<string, () => EditResult> = {
   hide: () => hideSelection(state),
   hideOthers: () => hideSelection(state, true),
   unhide: () => unhideAll(state),
+  solo: () => soloLayer(state),
+  showLayers: () => showAllLayers(state),
 };
 app.querySelectorAll<HTMLButtonElement>('[data-select]').forEach((b) =>
   b.addEventListener('click', () => {
@@ -484,6 +508,8 @@ state.subscribe(() => {
   layerButtons.forEach((b, i) => {
     b.classList.toggle('active', i === state.activeLayer);
     b.classList.toggle('filled', state.layers[i]!.points.length > 0);
+    b.classList.toggle('off', state.isLayerHidden(i));
+    b.title = `Layer ${i + 1}${state.isLayerHidden(i) ? ' (hidden)' : ''}: click to edit, Shift-click to ${state.isLayerHidden(i) ? 'show' : 'hide'}`;
   });
   pasteButton.disabled = !state.clipboard;
   undoButton.disabled = !history.canUndo;
@@ -539,6 +565,10 @@ window.addEventListener('keydown', (e) => {
     if (!e.altKey && Object.hasOwn(TOOL_KEYS, key)) state.setTool(TOOL_KEYS[key]!);
     if (key === 'p') state.setMode(state.mode === 'points' ? 'polygons' : 'points');
     if (key === 'f') runEdit('make');
+    if (key === 'h') {
+      const r = e.shiftKey ? hideSelection(state, true) : toggleHidden(state);
+      notify(r.message, !r.ok);
+    }
     if (key === 'a') fitAll();
     if (key === 'n') numeric.toggle();
     if (key === 'i') positionPanel.toggle();

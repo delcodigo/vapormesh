@@ -33,6 +33,8 @@ export interface EditorState {
   customPivot: Vec3 | null;
   /** Camera of each viewport, by kind. Missing views keep whatever they have. */
   views: Partial<Record<ViewKind, ViewState>>;
+  /** Layers (0-based) that are hidden. Absent in files written before layers could be hidden. */
+  hiddenLayers?: number[];
 }
 
 export interface ProjectData {
@@ -204,6 +206,9 @@ function parseEditor(raw: unknown): EditorState | undefined {
     selectMode: raw.selectMode === 'polygons' ? 'polygons' : 'points',
     customPivot: finiteVec3(raw.customPivot),
     views,
+    hiddenLayers: Array.isArray(raw.hiddenLayers)
+      ? [...new Set(raw.hiddenLayers.filter((n): n is number => Number.isInteger(n) && n >= 0 && n < LAYER_COUNT))]
+      : [],
   };
 }
 

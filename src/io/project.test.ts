@@ -23,6 +23,7 @@ function sample(): ProjectData {
   const editor = {
     selectMode: 'polygons' as const,
     customPivot: [1, 2, 3] as [number, number, number],
+    hiddenLayers: [2, 7],
     views: {
       perspective: { target: [0.5, 0, -1] as [number, number, number], radius: 9, theta: 2.5, phi: 0.7 },
       top: { target: [3, 0, 4] as [number, number, number], orthoSize: 12.5 },
@@ -279,6 +280,16 @@ describe('editor state in the file', () => {
     expect(back.views.top).toBeUndefined();
     expect(back.views.face).toEqual({ target: [1, 2, 3] });
     expect(back.views.left).toEqual({ target: [0, 0, 0], orthoSize: 7 });
+    expect(back.hiddenLayers).toEqual([]);
+  });
+
+  it('keeps which layers are hidden, and ignores anything in the list that is not a layer', () => {
+    const data = sample();
+    expect(decodeProject(encodeProject(data)).editor!.hiddenLayers).toEqual([2, 7]);
+    data.editor = { ...data.editor!, hiddenLayers: [3, 3, -1, 10, 1.5, 'x' as never, 0] };
+    expect(decodeProject(encodeProject(data)).editor!.hiddenLayers).toEqual([3, 0]);
+    data.editor = { ...data.editor!, hiddenLayers: 'all' as never };
+    expect(decodeProject(encodeProject(data)).editor!.hiddenLayers).toEqual([]);
   });
 });
 

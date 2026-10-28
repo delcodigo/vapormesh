@@ -18,8 +18,12 @@ import {
   selectConnected,
   shrinkPoints,
   shrinkPolygons,
+  showAllLayers,
   shrinkSelection,
   snapOffset,
+  soloLayer,
+  toggleHidden,
+  toggleLayerHidden,
   snapPointInView,
   snapValue,
   unhideAll,
@@ -378,3 +382,73 @@ describe('snapping everywhere', () => {
     expect(Math.max(...s.mesh.points.map((p) => p[0]))).toBeCloseTo(1.3, 9);
   });
 });
+
+describe('hiding layers', () => {
+  const three = () => {
+    const s = new ModelerState(box(1, 1, 1));
+    s.layers[1]!.append(box(1, 1, 1));
+    s.layers[2]!.append(box(1, 1, 1));
+    return s;
+  };
+
+  it('hides and shows a background layer, saying what it did', () => {
+    const s = three();
+    expect(toggleLayerHidden(s, 1)).toEqual({ ok: true, message: 'Hid layer 2' });
+    expect(s.isLayerHidden(1)).toBe(true);
+    expect(toggleLayerHidden(s, 1)).toEqual({ ok: true, message: 'Showed layer 2' });
+    expect(s.isLayerHidden(1)).toBe(false);
+  });
+
+  it('will not hide the layer being edited, or a layer that does not exist', () => {
+    const s = three();
+    expect(toggleLayerHidden(s, 0).ok).toBe(false);
+    expect(toggleLayerHidden(s, 0).message).toContain('go to another layer');
+    expect(toggleLayerHidden(s, 99)).toEqual({ ok: false, message: 'There is no such layer' });
+    expect(s.hiddenLayers.size).toBe(0);
+  });
+
+  it('going to a hidden layer shows it, so you never edit what you cannot see', () => {
+    const s = three();
+    s.setLayerHidden(2, true);
+    s.setActiveLayer(2);
+    expect(s.isLayerHidden(2)).toBe(false);
+    expect(s.setLayerHidden(2, true)).toBe(false); // now the active layer
+  });
+
+  it('solo hides every other layer that has something in it; show all brings them back', () => {
+    const s = three();
+    expect(soloLayer(s).message).toBe('Hid 2 other layers');
+    expect([...s.hiddenLayers].sort()).toEqual([1, 2]);
+    expect(soloLayer(s).ok).toBe(false); // nothing left to hide
+    expect(showAllLayers(s).message).toBe('Showed 2 layers');
+    expect(showAllLayers(s)).toEqual({ ok: false, message: 'No layers are hidden' });
+    expect(soloLayer(new ModelerState(box(1, 1, 1))).ok).toBe(false); // nothing else exists
+  });
+
+  it('loading a project clears it, and changing layers or hiding notifies the views', () => {
+    const s = three();
+    let n = 0;
+    s.subscribe(() => n++);
+    s.setLayerHidden(1, true);
+    expect(n).toBe(1);
+    s.setLayerHidden(1, true); // already so: nothing to tell
+    expect(n).toBe(1);
+    s.loadLayers([], 0);
+    expect(s.hiddenLayers.size).toBe(0);
+  });
+});
+
+describe('the H key', () => {
+  it('hides the selection; with nothing selected it brings back hidden polygons, then hidden layers', () => {
+    const s = new ModelerState(strip());
+    s.layers[1]!.append(box(1, 1, 1));
+    s.setMode('polygons');
+    s.applyPick(0, 'replace');
+    expect(toggleHidden(s).message).toBe('Hid 1 polygon');
+    s.setLayerHidden(1, true);
+    expect(toggleHidden(s).message).toBe('Showed 1 polygon'); // polygons first
+    expect(toggleHidden(s).message).toBe('Showed 1 layer');
+    expect(toggleHidden(s)).toEqual({ ok: false, message: 'Select something to hide' });
+  });
+});
+

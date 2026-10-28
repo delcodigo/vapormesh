@@ -154,6 +154,43 @@ export function unhideAll(state: ModelerState): EditResult {
   return done(`Showed ${plural(n, 'polygon')}`);
 }
 
+// --- layers -----------------------------------------------------------------------------------------------------------
+
+/** Hide or show one layer. The layer you are editing cannot be hidden. */
+export function toggleLayerHidden(state: ModelerState, layer: number): EditResult {
+  const hide = !state.isLayerHidden(layer);
+  if (!state.setLayerHidden(layer, hide)) {
+    return fail(layer === state.activeLayer ? 'This is the layer you are editing; go to another layer to hide it' : 'There is no such layer');
+  }
+  return done(`${hide ? 'Hid' : 'Showed'} layer ${layer + 1}`);
+}
+
+/** Hide every layer but the active one: look at one thing on its own. */
+export function soloLayer(state: ModelerState): EditResult {
+  const others = state.layers.flatMap((l, i) => (i !== state.activeLayer && l.points.length > 0 && !state.isLayerHidden(i) ? [i] : []));
+  if (others.length === 0) return fail('There are no other layers with anything in them to hide');
+  others.forEach((i) => state.setLayerHidden(i, true));
+  return done(`Hid ${plural(others.length, 'other layer')}`);
+}
+
+export function showAllLayers(state: ModelerState): EditResult {
+  const hidden = [...state.hiddenLayers];
+  if (hidden.length === 0) return fail('No layers are hidden');
+  hidden.forEach((i) => state.setLayerHidden(i, false));
+  return done(`Showed ${plural(hidden.length, 'layer')}`);
+}
+
+/**
+ * The H key: hide what is selected; with nothing selected, show everything that is hidden (polygons first, then layers).
+ * One key to put things away and bring them back.
+ */
+export function toggleHidden(state: ModelerState): EditResult {
+  if (state.selectedPolygonIds().length > 0) return hideSelection(state);
+  if (state.mesh.hidden.size > 0) return unhideAll(state);
+  if (state.hiddenLayers.size > 0) return showAllLayers(state);
+  return fail('Select something to hide');
+}
+
 // --- grid snapping ---------------------------------------------------------------------------------------------------
 
 /** Round `value` to the nearest multiple of `grid`, or leave it alone when the grid is 0. */

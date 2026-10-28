@@ -15,7 +15,7 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 
 | Done | |
 |------|---|
-| Modeling | Box, ball, disc and cone; move, rotate, size, a numeric panel and a live position readout; extrude, bevel, array/clone, lathe, mirror; stretch, drag, magnet, bend, twist, taper; knife; boolean between layers; select connected, grow, shrink, lasso, grid snap, hide; delete, merge, weld, flip, make polygon, triple; cut, copy and paste; ten layers |
+| Modeling | Box, ball, disc and cone; move, rotate, size, a numeric panel and a live position readout; extrude, bevel, array/clone, lathe, mirror; stretch, drag, magnet, bend, twist, taper; knife; boolean between layers; select connected, grow, shrink, lasso, grid snap; hide and show polygons and layers; delete, merge, weld, flip, make polygon, triple; cut, copy and paste; ten layers |
 | Surfaces and textures | Per-surface name (renameable, undoable), colour (from the palette), diffuse, luminosity, specular, smoothing and angle; indexed images, PNG import, per-corner UVs, a UV editor with projections |
 | Palette | One 256-colour palette per project, a palette editor, `.gpl` and `.act` import and export, palettes from pictures |
 | Look | A retro Shaded view: low resolution, nearest-neighbour upscaling, ordered dither, mapped to the project palette |
@@ -34,12 +34,18 @@ groups the rest in tabs, one at a time:
 | Create | Box, Ball, Disc, Cone |
 | Modify | Numeric, Position, and the deformers: Stretch, Drag, Magnet, Bend, Twist, Taper |
 | Multiply | Extrude, Bevel, Array, Lathe, Mirror, Knife, Boolean |
-| Pick | All, Invert, None, Connected, Grow, Shrink, Lasso; Hide, Hide Others, Unhide All |
+| Pick | All, Invert, None, Connected, Grow, Shrink, Lasso |
+| Show | Hide, Hide Others, Unhide All (polygons); Solo Layer, Show Layers |
 | Edit | Delete, Merge Points, Weld, Flip, Make Polygon, Triple |
 | Surface | Surfaces, Images, UV Editor, Palette |
 
 To **lathe**, click the profile points in order along the outline (Point mode, bottom to top), choose Lathe, then drag in a
 view to place the axis: the shape follows the pointer. The options set the axis direction, the sides and the angle.
+
+**Hiding.** Hidden polygons are not drawn, picked or selected, and edits that act on "everything" skip them where they can; hiding is
+display state, so it is not saved and any edit that renumbers polygons shows them again. Hidden **layers** are not drawn in any view.
+Shift-click a layer square (top right) to hide or show it; only a background layer can be hidden, and going to a hidden layer shows it.
+Which layers are hidden is saved in the project. OBJ export still writes every layer.
 
 New, Load, Save, Import OBJ and Export OBJ are in the **File** menu in the menu bar (`Ctrl+O` and `Ctrl+S` still work).
 
@@ -56,6 +62,7 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 | `1` `2` `P` | Point mode, Polygon mode, switch between them |
 | `A` | Fit: centre every view on the whole model and zoom to show all of it (also the **Fit** button; done automatically after opening the startup model and importing an OBJ) |
 | `N` `I` `U` | Numeric panel, Position panel, UV editor |
+| `H` | Hide the selected polygons; with nothing selected, show what is hidden again. `Shift+H` hides everything but the selection (then `Space` clears the selection, so `H` shows them again) |
 | `Space` | Clear the selection |
 | `F` | Make a polygon (a face) from the selected points, in the order you picked them |
 | `Delete` | Delete the selection |

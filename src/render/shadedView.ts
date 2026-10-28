@@ -92,7 +92,8 @@ export class ShadedView {
       (m.material as THREE.Material).dispose();
     }
     const used = new Set<string>();
-    for (const layer of this.state.layers) {
+    for (const [layerIndex, layer] of this.state.layers.entries()) {
+      if (this.state.isLayerHidden(layerIndex)) continue;
       layer.surfaces.forEach((surface, index) => {
         const { positions, normals, uvs } = buildSurfaceBuffers(layer, index);
         if (positions.length === 0) return;

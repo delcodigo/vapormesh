@@ -42,6 +42,8 @@ The file length must equal `16 + J + B` exactly. The JSON chunk is plain text, s
   "editor": {                      // optional: how the editor was set up. Cosmetic, never fatal
     "selectMode": "points" | "polygons",
     "customPivot": [x, y, z] | null,
+    "hiddenLayers": [2, 5],        // optional: layers (0-based) that are not drawn
+
     "views": {                     // any subset of: perspective, top, face, left
       "perspective": { "target": [x,y,z], "radius": 6, "theta": 0.64, "phi": 1.0 },
       "top":         { "target": [x,y,z], "orthoSize": 4 }

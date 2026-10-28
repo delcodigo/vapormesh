@@ -33,6 +33,11 @@ export class ModelerState {
   createOp: PrimitiveName | null = null;
   readonly layers: Mesh[];
   activeLayer = 0;
+  /**
+   * Layers not drawn at all. Only background layers can be hidden, so what you are editing is always on screen; going to a
+   * hidden layer shows it again. Display state, saved in the project's editor block.
+   */
+  readonly hiddenLayers = new Set<number>();
   /** Copied polygons, with their own points and surfaces. Survives layer changes, so you can paste into another layer. */
   clipboard: Mesh | null = null;
   /** Project-wide: one palette shared by every tool, and the images surfaces refer to by name. Replace, don't mutate. */
@@ -70,6 +75,7 @@ export class ModelerState {
     this.images = assets.images;
     for (let i = 0; i < LAYER_COUNT; i++) this.layers[i] = layers[i] ?? new Mesh();
     this.activeLayer = Math.min(Math.max(activeLayer, 0), LAYER_COUNT - 1);
+    this.hiddenLayers.clear();
     this.selectedPoints.clear();
     this.selectedPolygons.clear();
     this.customPivot = null;
@@ -81,10 +87,26 @@ export class ModelerState {
   setActiveLayer(layer: number): void {
     if (layer === this.activeLayer || layer < 0 || layer >= LAYER_COUNT) return;
     this.activeLayer = layer;
+    this.hiddenLayers.delete(layer); // you cannot edit what you cannot see
     this.selectedPoints.clear();
     this.selectedPolygons.clear();
     this.dragPivot = null;
     this.changed();
+  }
+
+  isLayerHidden(layer: number): boolean {
+    return this.hiddenLayers.has(layer);
+  }
+
+  /** Hide or show a layer. The active layer cannot be hidden; returns whether the layer ended up as asked. */
+  setLayerHidden(layer: number, hidden: boolean): boolean {
+    if (layer < 0 || layer >= LAYER_COUNT) return false;
+    if (hidden && layer === this.activeLayer) return false;
+    if (hidden === this.hiddenLayers.has(layer)) return true;
+    if (hidden) this.hiddenLayers.add(layer);
+    else this.hiddenLayers.delete(layer);
+    this.changed();
+    return true;
   }
 
   subscribe(fn: () => void): () => void {
