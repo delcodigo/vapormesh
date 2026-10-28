@@ -78,7 +78,9 @@ import {
   polygonsInLasso,
   polygonsInRect,
   Viewport,
+  VIEW_SIDES,
   type DragInfo,
+  type ViewSide,
   type ViewMode,
   type ViewKind,
 } from '@/render';
@@ -252,7 +254,7 @@ app.innerHTML = `
       </div>
     </div>
     <div class="viewports">
-      ${VIEWS.map(([, n]) => `<div class="viewport"><canvas></canvas><span class="label">${n}</span></div>`).join('')}
+      ${VIEWS.map(([k, n]) => `<div class="viewport"><canvas></canvas>${k === 'perspective' ? `<span class="label">${n}</span>` : `<select class="label side" title="Which side this view looks from">${VIEW_SIDES.map(([v, l]) => `<option value="${v}"${v === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`}</div>`).join('')}
     </div>
   </div>
   <div class="bottombar">
@@ -613,6 +615,11 @@ function boxSelect(vp: Viewport, i: DragInfo): void {
 
 const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport canvas')].map((c, i) => {
   const vp = new Viewport(c, VIEWS[i]![0]);
+  const sideMenu = c.parentElement!.querySelector<HTMLSelectElement>('select.side');
+  sideMenu?.addEventListener('change', () => {
+    vp.setSide(sideMenu.value as ViewSide);
+    sideMenu.blur(); // keep the tool hotkeys working
+  });
   const view = new MeshView(state);
   vp.scene.add(view.group);
   const shaded = vp.kind === 'perspective' ? new ShadedView(state) : null;

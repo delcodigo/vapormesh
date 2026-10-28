@@ -9,11 +9,28 @@ import { RetroPass } from './retroPass';
 export type ViewKind = 'perspective' | 'top' | 'face' | 'left';
 type OrthoKind = Exclude<ViewKind, 'perspective'>;
 
-/** Orthographic views look down an axis; `up` keeps the screen orientation LightWave-like. */
-const ORTHO: Record<OrthoKind, { dir: THREE.Vector3Tuple; up: THREE.Vector3Tuple; plane: [number, number] }> = {
-  top: { dir: [0, 1, 0], up: [0, 0, -1], plane: [0, 2] }, // XZ
-  face: { dir: [0, 0, 1], up: [0, 1, 0], plane: [0, 1] }, // XY
-  left: { dir: [-1, 0, 0], up: [0, 1, 0], plane: [2, 1] }, // ZY, +Z to the right as in LightWave
+/** The six sides an orthographic view can look from. */
+export type ViewSide = 'top' | 'bottom' | 'face' | 'back' | 'left' | 'right';
+export const VIEW_SIDES: [ViewSide, string][] = [
+  ['top', 'Top'],
+  ['bottom', 'Bottom'],
+  ['face', 'Face'],
+  ['back', 'Back'],
+  ['left', 'Left'],
+  ['right', 'Right'],
+];
+
+/**
+ * Where each side's camera sits (`dir` points from the scene to the viewer) and which way is up on screen, LightWave-like.
+ * `plane` is the pair of world axes shown, as (horizontal, vertical); opposite sides show the same plane, mirrored.
+ */
+const ORTHO: Record<ViewSide, { dir: THREE.Vector3Tuple; up: THREE.Vector3Tuple; plane: [number, number]; base: OrthoKind }> = {
+  top: { dir: [0, 1, 0], up: [0, 0, -1], plane: [0, 2], base: 'top' }, // XZ
+  bottom: { dir: [0, -1, 0], up: [0, 0, 1], plane: [0, 2], base: 'top' },
+  face: { dir: [0, 0, 1], up: [0, 1, 0], plane: [0, 1], base: 'face' }, // XY
+  back: { dir: [0, 0, -1], up: [0, 1, 0], plane: [0, 1], base: 'face' },
+  left: { dir: [-1, 0, 0], up: [0, 1, 0], plane: [2, 1], base: 'left' }, // ZY, +Z to the right as in LightWave
+  right: { dir: [1, 0, 0], up: [0, 1, 0], plane: [2, 1], base: 'left' },
 };
 
 const MIN_GRID_PIXELS = 24;
@@ -72,6 +89,9 @@ export class Viewport implements Projector {
   private theta = DEFAULT_VIEW.theta;
   private phi = DEFAULT_VIEW.phi; // polar angle from +Y
 
+  /** Which side an orthographic view looks from. Starts as the view's own kind; the viewport's menu can change it. */
+  private side: ViewSide = 'top';
+
   private grid: THREE.LineSegments | null = null;
   private dirty = true;
   private width = 0;
@@ -88,7 +108,10 @@ export class Viewport implements Projector {
       kind === 'perspective'
         ? new THREE.PerspectiveCamera(45, 1, 0.1, 1000)
         : new THREE.OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
-    if (kind !== 'perspective') this.camera.up.set(...ORTHO[kind].up);
+    if (kind !== 'perspective') {
+      this.side = kind;
+      this.camera.up.set(...ORTHO[kind].up);
+    }
     this.updateCamera();
     this.bindEvents();
   }
@@ -123,6 +146,18 @@ export class Viewport implements Projector {
       this.renderer.render(this.scene, this.camera);
       this.renderer.autoClear = true;
     }
+  }
+
+  get viewSide(): ViewSide {
+    return this.side;
+  }
+
+  /** Look from another side. The pan and zoom stay; only the direction (and so what is mirrored) changes. */
+  setSide(side: ViewSide): void {
+    if (!this.isOrtho || side === this.side) return;
+    this.side = side;
+    this.camera.up.set(...ORTHO[side].up);
+    this.dirty = true;
   }
 
   get isOrtho(): boolean {
@@ -188,7 +223,7 @@ export class Viewport implements Projector {
   frame(box: Bounds): void {
     const current = normalizeView({ target: [this.target.x, this.target.y, this.target.z], orthoSize: this.orthoSize, radius: this.radius, theta: this.theta, phi: this.phi });
     const fov = this.camera instanceof THREE.PerspectiveCamera ? this.camera.fov : 50;
-    this.setView(fitView(this.kind, box, this.width / Math.max(this.height, 1), fov, current));
+    this.setView(fitView(this.isOrtho ? ORTHO[this.side].base : this.kind, box, this.width / Math.max(this.height, 1), fov, current));
   }
 
   // --- rubber band -------------------------------------------------------
@@ -265,7 +300,7 @@ export class Viewport implements Projector {
       cam.right = hh * aspect;
       cam.top = hh;
       cam.bottom = -hh;
-      cam.position.set(...ORTHO[this.kind as OrthoKind].dir).multiplyScalar(10).add(this.target);
+      cam.position.set(...ORTHO[this.side].dir).multiplyScalar(10).add(this.target);
     }
     cam.lookAt(this.target);
     cam.updateProjectionMatrix();
@@ -427,7 +462,7 @@ export class Viewport implements Projector {
       uHalf = vHalf = 10;
       step = 1;
     } else {
-      plane = ORTHO[this.kind as OrthoKind].plane;
+      plane = ORTHO[this.side].plane;
       vHalf = this.orthoSize / 2;
       uHalf = vHalf * aspect;
       const ppu = Math.max(this.height, 1) / this.orthoSize;

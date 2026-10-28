@@ -56,6 +56,9 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 
 ## Keys
 
+Each orthographic view has a side menu in its corner (Top, Bottom, Face, Back, Left, Right), so any of the three can look from the opposite side or from another axis; pan and zoom are kept. The choice is not saved with the project.
+
+
 | Key | |
 |-----|---|
 | `Q` `M` `R` `S` | Select, Move, Rotate, Size |
