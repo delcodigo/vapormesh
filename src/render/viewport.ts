@@ -305,6 +305,77 @@ export class Viewport implements Projector {
     cam.lookAt(this.target);
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
+    this.placeReference();
+  }
+
+  // --- reference image --------------------------------------------------
+
+  private reference: { mesh: THREE.Mesh; aspect: number; x: number; y: number; width: number } | null = null;
+
+  /** Show an image behind the model in an orthographic view. It starts centred and about as tall as the view. */
+  async setReferenceImage(url: string): Promise<void> {
+    if (!this.isOrtho) return;
+    const texture = await new THREE.TextureLoader().loadAsync(url);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const image = texture.image as { width: number; height: number };
+    this.clearReference();
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.5,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    mesh.renderOrder = -10;
+    this.scene.add(mesh);
+    const aspect = image.width / Math.max(image.height, 1);
+    this.reference = { mesh, aspect, x: 0, y: 0, width: this.orthoSize * 0.8 * aspect };
+    this.dirty = true;
+  }
+
+  /** The reference image's placement in view units: offset right and up from the world origin, and width. Null if there is none. */
+  getReference(): { x: number; y: number; width: number; opacity: number; visible: boolean } | null {
+    const r = this.reference;
+    if (!r) return null;
+    const material = r.mesh.material as THREE.MeshBasicMaterial;
+    return { x: r.x, y: r.y, width: r.width, opacity: material.opacity, visible: r.mesh.visible };
+  }
+
+  updateReference(change: Partial<{ x: number; y: number; width: number; opacity: number; visible: boolean }>): void {
+    const r = this.reference;
+    if (!r) return;
+    if (change.x !== undefined && Number.isFinite(change.x)) r.x = change.x;
+    if (change.y !== undefined && Number.isFinite(change.y)) r.y = change.y;
+    if (change.width !== undefined && Number.isFinite(change.width) && change.width > 0) r.width = change.width;
+    if (change.opacity !== undefined) (r.mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(Math.max(change.opacity, 0), 1);
+    if (change.visible !== undefined) r.mesh.visible = change.visible;
+    this.dirty = true;
+  }
+
+  clearReference(): void {
+    const r = this.reference;
+    if (!r) return;
+    this.scene.remove(r.mesh);
+    const material = r.mesh.material as THREE.MeshBasicMaterial;
+    material.map?.dispose();
+    material.dispose();
+    r.mesh.geometry.dispose();
+    this.reference = null;
+    this.dirty = true;
+  }
+
+  /** Face the camera, at the stored offset along the screen's right and up, scaled to the stored width. */
+  private placeReference(): void {
+    const r = this.reference;
+    if (!r) return;
+    const q = this.camera.quaternion;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    r.mesh.quaternion.copy(q);
+    r.mesh.position.copy(right.multiplyScalar(r.x).addScaledVector(up, r.y));
+    r.mesh.scale.set(r.width, r.width / r.aspect, 1);
   }
 
   /** World-space size of one screen pixel at the target distance. */

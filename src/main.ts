@@ -49,6 +49,7 @@ import {
   createMtlPrompt,
   setupMenus,
   createPositionPanel,
+  createReferencePanel,
   createStatsPanel,
   createBooleanPanel,
   createFileActions,
@@ -236,6 +237,8 @@ app.innerHTML = `
         <button data-select="hide" title="Hide the selected polygons; in Point mode, those whose points are all selected (H)">Hide</button>
         <button data-select="hideOthers" title="Hide everything except the selection (Shift+H)">Hide Others</button>
         <button data-select="unhide" title="Show every hidden polygon again (H with nothing selected)">Unhide All</button>
+        <div class="section">Views</div>
+        <button data-action="reference" title="Put an image behind a Top, Face or Left view as a modeling reference">Reference…</button>
         <div class="section">Layers</div>
         <button data-select="solo" title="Hide every other layer, to look at this one alone">Solo Layer</button>
         <button data-select="showLayers" title="Show every hidden layer again">Show Layers</button>
@@ -354,6 +357,12 @@ const positionPanel = createPositionPanel(state, app.querySelector('.workspace')
 positionButton.classList.add('active');
 const statsButton = app.querySelector<HTMLButtonElement>('[data-action="stats"]')!;
 const statsPanel = createStatsPanel(state, app.querySelector('.workspace')!, () => statsButton.classList.toggle('active', statsPanel.isOpen()));
+const referenceButton = app.querySelector<HTMLButtonElement>('[data-action="reference"]')!;
+const referencePanel = createReferencePanel(
+  app.querySelector('.workspace')!,
+  () => viewports.flatMap(({ vp }, i) => (vp.isOrtho ? [{ vp, label: VIEWS[i]![1] }] : [])),
+  () => referenceButton.classList.toggle('active', referencePanel.isOpen()),
+);
 const numericButton = app.querySelector<HTMLButtonElement>('[data-action="numeric"]')!;
 const primitives = createPrimitivePanel(state, app.querySelector('.workspace')!);
 const primitiveButtons = [...app.querySelectorAll<HTMLButtonElement>('[data-create]')];
@@ -480,6 +489,7 @@ const ACTIONS: Record<string, () => void> = {
   numeric: () => numeric.toggle(),
   position: () => positionPanel.toggle(),
   stats: () => statsPanel.toggle(),
+  reference: () => referencePanel.toggle(),
   surface: () => surfaces.toggle(),
   images: () => images.toggle(),
   uv: () => uvEditor.toggle(),

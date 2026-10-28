@@ -178,6 +178,11 @@ canvas.uv-canvas:focus { border-color: var(--cyan); }
 .pal-info { margin: 3px 0; font: 11px 'Courier New', monospace; color: var(--ink); min-height: 14px; }
 .numeric .numeric-row input[type='text'] + button { margin-left: 4px; flex: none; }
 
+/* a reference image behind a view */
+.numeric.reference { top: 150px; right: auto; left: 8px; width: 258px; }
+.numeric.reference[hidden] { display: none; }
+.numeric.reference .msg:empty { display: none; }
+
 /* the size of the selection or layer, editable */
 .numeric.stats { top: 8px; right: auto; left: 8px; width: 258px; }
 .numeric.stats[hidden] { display: none; }

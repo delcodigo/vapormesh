@@ -60,6 +60,8 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 
 **Axis locks** (X, Y, Z buttons above Snap, or the `X` `Y` `Z` keys) limit Move, Rotate and Size to the axes you switch on; none on means free. Move keeps only those components, Size scales only along them, and Rotate turns about a single locked axis (swept around the pivot if the axis points out of the view, otherwise by dragging across it).
 
+**Reference…** (Show tab) puts an image behind a Top, Face or Left view for tracing. It sits in the world, so it pans and zooms with the model; set its offset, width and opacity in the panel, or hide it. It is not saved with the project, so load it again next session.
+
 **Stats** (Modify tab, `J`) shows the size of the selection, or of the whole layer when nothing is selected, with its point and polygon counts. Type a new X, Y or Z and it scales about its centre; *Keep proportions* scales the other axes with it. One undo step; flat axes cannot be scaled.
 
 Each orthographic view has a side menu in its corner (Top, Bottom, Face, Back, Left, Right), so any of the three can look from the opposite side or from another axis; pan and zoom are kept. The choice is not saved with the project.
