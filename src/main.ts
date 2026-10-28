@@ -118,6 +118,9 @@ const TOOL_TAB: Partial<Record<ToolName, TabName>> = {
 };
 const SNAPS: [number, string][] = [
   [0, 'Off'],
+  [0.005, '0.005'],
+  [0.01, '0.01'],
+  [0.025, '0.025'],
   [0.05, '0.05'],
   [0.1, '0.1'],
   [0.25, '0.25'],
@@ -489,7 +492,21 @@ app.querySelectorAll<HTMLButtonElement>('[data-select]').forEach((b) =>
   }),
 );
 const snapSelect = app.querySelector<HTMLSelectElement>('[data-snap]')!;
-snapSelect.addEventListener('change', () => state.setSnap(Number(snapSelect.value)));
+snapSelect.addEventListener('change', () => {
+  state.setSnap(Number(snapSelect.value));
+  try {
+    localStorage.setItem('vapormesh.snap', String(state.snap));
+  } catch {
+    /* private window or blocked storage: the choice just is not remembered */
+  }
+});
+try {
+  // the last choice, if it is still one of the menu's steps
+  const saved = Number(localStorage.getItem('vapormesh.snap'));
+  if (localStorage.getItem('vapormesh.snap') !== null && SNAPS.some(([v]) => v === saved)) state.setSnap(saved);
+} catch {
+  /* as above */
+}
 app.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((b) =>
   b.addEventListener('click', () => ACTIONS[b.dataset.action!]!()),
 );

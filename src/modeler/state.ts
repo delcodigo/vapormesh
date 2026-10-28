@@ -2,8 +2,8 @@ import { defaultImages, defaultPalette, Mesh, type IndexedImage, type Palette, t
 import { History, type Command } from './history';
 import type { PrimitiveName } from './create';
 
-/** Grid step new sessions start with. */
-export const DEFAULT_SNAP = 0.1;
+/** Grid step a new session starts with: 1% of a model one unit tall, fine enough not to inflate small assets. */
+export const DEFAULT_SNAP = 0.01;
 
 export type SelectMode = 'points' | 'polygons';
 export type SelectOp = 'replace' | 'toggle';

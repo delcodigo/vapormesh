@@ -71,7 +71,7 @@ for the `.mtl` it names, since a web page cannot open it by itself. Without it, 
 | `Ctrl` + `Z` `Y` | Undo, redo (`Ctrl+Shift+Z` also redoes) |
 | `Ctrl` + `S` `O` | Save, open |
 
-Moves, Drag, Magnet, Extrude and Size snap to the grid set by the **Snap** menu (0.1 by default; Off for free dragging).
+Moves, Drag, Magnet, Extrude and Size snap to the grid set by the **Snap** menu (0.01 by default, remembered between sessions; the menu goes from 0.005 up to 1, and Off drags freely). For a model about one unit tall, 0.01 is 1% of its height.
 In a view, the middle or right button, or `Shift` with the left, pans; the wheel zooms; the left button orbits the Perspective view.
 
 ## Running it
