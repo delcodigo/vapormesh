@@ -32,6 +32,10 @@ const PROJECTIONS = [
 export interface UvEditor {
   toggle(): void;
   isOpen(): boolean;
+  /** Whether an event target is inside the editor, so its keys are the ones to act on. */
+  contains(target: EventTarget | null): boolean;
+  /** Handle a tool or selection key (Q M R S, Space, Ctrl+A, Escape); false if it is not one of those. */
+  handleKey(e: KeyboardEvent): boolean;
 }
 
 type Tool = 'select' | UvToolKind;
@@ -39,7 +43,8 @@ type Tool = 'select' | UvToolKind;
 /**
  * A 2D editor for the UVs of the polygons selected in the 3D views (or of the whole layer if none are): the texture
  * behind, the polygons' UVs on top. Left-drag selects with the Select tool, or drags with Move / Rotate / Size;
- * right or middle drag pans; the wheel zooms. Tools act on the selected corners, or on all shown if none are selected.
+ * right or middle drag pans; the wheel zooms. Like the 3D views, Move / Rotate / Size act on the selected corners, and
+ * with none selected a drag selects instead. Q M R S pick the tool while the editor has the focus.
  */
 export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle: () => void): UvEditor {
   const el = document.createElement('div');
@@ -49,10 +54,10 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
     <div class="numeric-title"><span>UV Editor</span><button data-act="close" title="Close">×</button></div>
     <div class="uv-row">
       <div class="numeric-tabs uv-tools">
-        <button data-tool="select" title="Drag a box to select corners">Select</button>
-        <button data-tool="move" title="Drag to move the selected corners">Move</button>
-        <button data-tool="rotate" title="Drag around the centre to rotate">Rotate</button>
-        <button data-tool="size" title="Drag away from or towards the centre to scale">Size</button>
+        <button data-tool="select" title="Drag a box to select corners (Q)">Select</button>
+        <button data-tool="move" title="Drag to move the selected corners (M)">Move</button>
+        <button data-tool="rotate" title="Drag around the centre to rotate (R)">Rotate</button>
+        <button data-tool="size" title="Drag away from or towards the centre to scale (S)">Size</button>
       </div>
     </div>
     <div class="uv-row">
@@ -285,10 +290,10 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
       if (Math.hypot(x - pointer.x0, y - pointer.y0) < CLICK_SLOP) return;
       pointer.moved = true;
       if (pointer.button !== 0) pointer.mode = 'pan';
-      else if (tool === 'select') pointer.mode = 'band';
+      else if (tool === 'select' || selected.size === 0) pointer.mode = 'band'; // nothing to transform: select instead
       else {
         const image = currentImage();
-        const affected = selected.size ? corners.filter((c) => selected.has(c.key)) : corners;
+        const affected = corners.filter((c) => selected.has(c.key));
         drag = new UvDrag(state, tool);
         const began = drag.begin(affected, {
           snap: snapBox.checked,
@@ -353,16 +358,26 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
     },
     { passive: false },
   );
-  canvas.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') apply([], 'replace');
-  });
+  const TOOL_KEYS: Record<string, Tool> = { q: 'select', m: 'move', r: 'rotate', s: 'size' };
+  const handleKey = (e: KeyboardEvent): boolean => {
+    const key = e.key.toLowerCase();
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod && !e.altKey && Object.hasOwn(TOOL_KEYS, key)) setTool(TOOL_KEYS[key]!);
+    else if (mod && key === 'a') apply(corners.map((c) => c.key), 'replace');
+    else if (!mod && (key === ' ' || key === 'escape')) apply([], 'replace');
+    else return false;
+    e.preventDefault();
+    return true;
+  };
 
   // --- controls ---
   imageSel.addEventListener('change', () => {
     imageName = imageSel.value;
+    imageSel.blur(); // keep the tool keys working
     updateStatus();
     redraw();
   });
+  snapBox.addEventListener('change', () => snapBox.blur());
   projSel.addEventListener('change', () => (axisSel.disabled = projSel.value === 'box'));
   axisSel.disabled = projSel.value === 'box';
 
@@ -397,5 +412,5 @@ export function createUvEditor(state: ModelerState, host: HTMLElement, onToggle:
     onToggle();
   }
 
-  return { toggle, isOpen: () => !el.hidden };
+  return { toggle, isOpen: () => !el.hidden, contains: (target) => target instanceof Node && el.contains(target), handleKey };
 }

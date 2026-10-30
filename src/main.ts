@@ -580,6 +580,8 @@ state.subscribe(() => {
 });
 
 window.addEventListener('keydown', (e) => {
+  // with the focus in the UV editor its own tool keys apply; everything else (undo, save, ...) stays global
+  if (uvEditor.contains(e.target) && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) && uvEditor.handleKey(e)) return;
   // Typing in a numeric field must not trigger shortcuts (1/2 switch modes, space clears, Ctrl+Z undoes).
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
   const mod = e.ctrlKey || e.metaKey;

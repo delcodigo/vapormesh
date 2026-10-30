@@ -2,7 +2,7 @@ const SECTIONS: [string, [string, string][]][] = [
   [
     'Tools',
     [
-      ['Q M R S', 'Select, Move, Rotate, Size'],
+      ['Q M R S', 'Select, Move, Rotate, Size (also in the UV editor, when it has the focus)'],
       ['E K', 'Extrude, Knife (Shift: straight cut)'],
       ['1 2 P', 'Point mode, Polygon mode, switch'],
       ['X Y Z', 'Axis locks'],

@@ -26,7 +26,7 @@ The file length must equal `16 + J + B` exactly. The JSON chunk is plain text, s
     {
       "surfaces": [ { "name": "Default", "colorIndex": 12, "diffuse": 1, "luminosity": 0, "specular": 0,
                       "glossiness": 0.2, "smoothing": false, "smoothingAngle": 89, "doubleSided": false,
-                      "texture": "Checker" | null, "wrap": "repeat" | "clamp" } ],
+                      "texture": "Checker" | null, "wrap": "repeat" | "clamp", "transparent": false } ],
       "points": 8,                 // number of points
       "polygons": 6,               // number of polygons
       "indices": 24,               // total point references over all polygons

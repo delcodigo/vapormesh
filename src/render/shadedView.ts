@@ -42,12 +42,15 @@ const VERTEX = /* glsl */ `
 const FRAGMENT = /* glsl */ `
   uniform vec3 uColor;
   uniform sampler2D uMap;
+  uniform bool uKey;
   varying vec2 vUv;
   varying vec2 vFront;
   varying vec2 vBack;
   void main() {
     vec2 ls = gl_FrontFacing ? vFront : vBack;
-    vec3 base = uColor * texture2D(uMap, vUv).rgb;
+    vec4 texel = texture2D(uMap, vUv);
+    if (uKey && texel.a == 0.0) discard;
+    vec3 base = uColor * texel.rgb;
     gl_FragColor = vec4(base * ls.x + vec3(ls.y), 1.0);
   }
 `;
@@ -56,7 +59,7 @@ function imageTexture(image: IndexedImage, palette: Palette, wrap: Surface['wrap
   const rgba = new Uint8Array(image.width * image.height * 4);
   for (let i = 0; i < image.pixels.length; i++) {
     const c = image.pixels[i]! * 3;
-    rgba.set([palette[c]!, palette[c + 1]!, palette[c + 2]!, 255], i * 4);
+    rgba.set([palette[c]!, palette[c + 1]!, palette[c + 2]!, image.pixels[i] === 0 ? 0 : 255], i * 4);
   }
   const tex = new THREE.DataTexture(rgba, image.width, image.height, THREE.RGBAFormat);
   tex.minFilter = tex.magFilter = THREE.NearestFilter; // no filtering: hard texels
@@ -131,6 +134,7 @@ export class ShadedView {
     return new THREE.ShaderMaterial({
       uniforms: {
         uColor: { value: new THREE.Vector3(...paletteColor01(this.state.palette, s.colorIndex)) }, // used as authored: no colour-space conversion
+        uKey: { value: s.transparent },
         uMap: { value: this.textureFor(s, used) },
         uDiffuse: { value: s.diffuse },
         uLuminosity: { value: s.luminosity },

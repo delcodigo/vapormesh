@@ -53,6 +53,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     <div class="numeric-group">
       <div class="numeric-heading"><span>Texture</span></div>
       <div class="numeric-row"><select data-f="texture"></select><select data-f="wrap" title="What UVs outside 0..1 do"><option value="repeat">Repeat</option><option value="clamp">Clamp</option></select></div>
+      <label class="choice"><input type="checkbox" data-f="transparent" title="Texels that use palette colour 0 are see-through"> Transparent (colour 0)</label>
       <div class="numeric-actions" style="margin-top:4px"><button data-act="autoUv" title="Box-project UVs for the selected polygons (or the whole layer) at a fixed texel density">Auto UV</button></div>
     </div>
     <div class="numeric-group">
@@ -70,6 +71,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
   const doubleSided = field<HTMLInputElement>('doubleSided');
   const texture = field<HTMLSelectElement>('texture');
   const wrap = field<HTMLSelectElement>('wrap');
+  const transparent = field<HTMLInputElement>('transparent');
   const angle = field<HTMLInputElement>('smoothingAngle');
   const newName = field<HTMLInputElement>('newName');
   const nameField = field<HTMLInputElement>('name');
@@ -121,6 +123,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     );
     texture.value = s.texture ?? '';
     wrap.value = s.wrap;
+    transparent.checked = s.transparent;
   };
 
   /** Re-read the panel's selected surface from the model (after undo, selection or layer changes). */
@@ -149,6 +152,7 @@ export function createSurfacePanel(state: ModelerState, host: HTMLElement, onTog
     doubleSided: doubleSided.checked,
     texture: texture.value || null,
     wrap: wrap.value === 'clamp' ? 'clamp' : 'repeat',
+    transparent: transparent.checked,
   });
 
   const apply = (fn: () => void) => {

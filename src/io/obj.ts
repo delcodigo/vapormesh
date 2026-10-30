@@ -58,7 +58,7 @@ export function exportObj(layers: readonly Mesh[], palette: Palette, mtlName: st
     if (s.specular > 0) materials.push(`Ks ${number(s.specular)} ${number(s.specular)} ${number(s.specular)}`, `Ns ${Math.round(Math.pow(2, 2 + s.glossiness * 8))}`);
     materials.push('d 1', `illum ${s.specular > 0 ? 2 : 1}`);
     // what the standard fields cannot say, in a comment that every other tool ignores
-    const extras = { diffuse: s.diffuse, luminosity: s.luminosity, specular: s.specular, glossiness: s.glossiness, smoothingAngle: s.smoothingAngle, doubleSided: s.doubleSided, texture: s.texture, wrap: s.wrap };
+    const extras = { diffuse: s.diffuse, luminosity: s.luminosity, specular: s.specular, glossiness: s.glossiness, smoothingAngle: s.smoothingAngle, doubleSided: s.doubleSided, texture: s.texture, wrap: s.wrap, transparent: s.transparent };
     materials.push(`# vapormesh ${JSON.stringify(extras)}`);
     if (s.texture) materials.push(`# texture: ${s.texture} (images are not exported; they live in the .vmesh)`);
     return name;
@@ -139,6 +139,7 @@ function readExtras(json: string): Partial<Surface> {
   if (isNumber(raw.smoothingAngle) && raw.smoothingAngle >= 0 && raw.smoothingAngle <= 180) out.smoothingAngle = raw.smoothingAngle;
   if (typeof raw.doubleSided === 'boolean') out.doubleSided = raw.doubleSided;
   if (raw.texture === null || typeof raw.texture === 'string') out.texture = raw.texture;
+  if (typeof raw.transparent === 'boolean') out.transparent = raw.transparent;
   if (raw.wrap === 'repeat' || raw.wrap === 'clamp') out.wrap = raw.wrap;
   return out;
 }

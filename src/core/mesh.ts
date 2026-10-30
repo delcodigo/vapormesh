@@ -17,6 +17,8 @@ export interface Surface {
   texture: string | null;
   /** What UVs outside 0..1 do: tile (walls) or hold the edge pixel (atlas regions). */
   wrap: 'repeat' | 'clamp';
+  /** Colour-key transparency: texels of the texture that use palette entry 0 are see-through. */
+  transparent: boolean;
 }
 
 export function defaultSurface(name = 'Default'): Surface {
@@ -32,6 +34,7 @@ export function defaultSurface(name = 'Default'): Surface {
     doubleSided: false,
     texture: null,
     wrap: 'repeat',
+    transparent: false,
   };
 }
 

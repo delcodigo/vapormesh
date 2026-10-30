@@ -169,6 +169,7 @@ function parseSurface(raw: unknown, index: number, palette: Palette): Surface {
     doubleSided: typeof raw.doubleSided === 'boolean' ? raw.doubleSided : d.doubleSided,
     texture: typeof raw.texture === 'string' && raw.texture ? raw.texture : null,
     wrap: raw.wrap === 'clamp' ? 'clamp' : 'repeat',
+    transparent: typeof raw.transparent === 'boolean' ? raw.transparent : d.transparent,
   };
 }
 

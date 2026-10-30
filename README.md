@@ -16,7 +16,7 @@ The **Modeler** is the part that exists. The rest of the plan is in [`docs/SPEC.
 | Done | |
 |------|---|
 | Modeling | Box, ball, disc and cone; move, rotate, size, a numeric panel and a live position readout; extrude, bevel, array/clone, lathe, mirror; stretch, drag, magnet, bend, twist, taper; knife; boolean between layers; select connected, grow, shrink, lasso, grid snap; hide and show polygons and layers; delete, merge, weld, flip, make polygon, triple; cut, copy and paste; ten layers |
-| Surfaces and textures | Per-surface name (renameable, undoable), colour (from the palette), diffuse, luminosity, specular, smoothing and angle; indexed images, PNG import, per-corner UVs, a UV editor with projections |
+| Surfaces and textures | Per-surface name (renameable, undoable), colour (from the palette), diffuse, luminosity, specular, smoothing and angle, a transparent (colour-key) texture option; indexed images, PNG import, per-corner UVs, a UV editor with projections |
 | Palette | One 256-colour palette per project, a palette editor, `.gpl` and `.act` import and export, palettes from pictures |
 | Look | A retro Shaded view: low resolution, nearest-neighbour upscaling, ordered dither, mapped to the project palette |
 | Projects | Save and load `.vmesh` files, with undo for everything ([format](docs/FORMAT.md)). Import and export Wavefront `.obj` (with a `.mtl` of colours) |
@@ -71,7 +71,7 @@ Each orthographic view has a side menu in its corner (Top, Bottom, Face, Back, L
 
 | Key | |
 |-----|---|
-| `Q` `M` `R` `S` | Select, Move, Rotate, Size |
+| `Q` `M` `R` `S` | Select, Move, Rotate, Size. In the UV editor, while it has the focus, they pick its own tool; with no corners selected a drag there selects, as in the 3D views |
 | `E` `K` | Extrude, Knife (hold `Shift` while dragging the knife for a horizontal or vertical cut) |
 | `1` `2` `P` | Point mode, Polygon mode, switch between them |
 | `A` | Fit: centre every view on the whole model and zoom to show all of it (also the **Fit** button; done automatically after opening the startup model and importing an OBJ) |
