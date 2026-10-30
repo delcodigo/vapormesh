@@ -38,7 +38,8 @@ The file length must equal `16 + J + B` exactly. The JSON chunk is plain text, s
     { "name": "Checker", "width": 64, "height": 64 }
   ],
   "display": { "mode": "wire" | "shaded" | "shaded-wire",
-               "retro": { "resolutionHeight": 240, "colorLevels": 32, "dither": 1, "usePalette": true } },
+               "retro": { "resolutionHeight": 240, "colorLevels": 32, "dither": 1, "usePalette": true },
+               "light": { "enabled": true, "azimuth": -42, "elevation": 50 } },
   "editor": {                      // optional: how the editor was set up. Cosmetic, never fatal
     "selectMode": "points" | "polygons",
     "customPivot": [x, y, z] | null,

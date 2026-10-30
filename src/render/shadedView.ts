@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { paletteColor01, type IndexedImage, type Palette, type Surface } from '@/core';
 import type { ModelerState } from '@/modeler';
 import { buildSurfaceBuffers } from './shading';
+import { lightDirection, type LightSettings } from './retro';
 
-/** Fixed light for now (Layout will bring real ones): a distant light from the upper left, plus ambient. */
-const LIGHT_DIRECTION = new THREE.Vector3(-0.45, 0.8, 0.5).normalize(); // towards the light, world space
+/** One distant light (set in the Retro panel; Layout will bring real ones), plus ambient. */
 const AMBIENT = 0.25;
 
 // Gouraud: lighting is computed per vertex as (light, specular) and interpolated across the polygon, then applied to
@@ -17,11 +17,13 @@ const VERTEX = /* glsl */ `
   uniform float uShininess;
   uniform vec3 uLight;
   uniform float uAmbient;
+  uniform bool uLit;
   varying vec2 vUv;
   varying vec2 vFront;
   varying vec2 vBack;
 
   vec2 shade(vec3 n, vec3 toViewer) {
+    if (!uLit) return vec2(1.0, 0.0);
     float ndl = max(dot(n, uLight), 0.0);
     vec3 h = normalize(uLight + toViewer);
     float spec = ndl > 0.0 ? uSpecular * pow(max(dot(n, h), 0.0), uShininess) : 0.0;
@@ -83,9 +85,20 @@ export class ShadedView {
   /** GPU textures by "image|wrap", kept while the image and palette are unchanged. */
   private textures = new Map<string, { image: IndexedImage; palette: Palette; texture: THREE.DataTexture }>();
 
-  constructor(private state: ModelerState) {}
+  private materials: THREE.ShaderMaterial[] = [];
+
+  constructor(
+    private state: ModelerState,
+    private light: LightSettings,
+  ) {}
 
   update(): void {
+    // the light is read every frame, so moving it needs no rebuild
+    const [x, y, z] = lightDirection(this.light);
+    for (const m of this.materials) {
+      m.uniforms.uLight!.value.set(x, y, z);
+      m.uniforms.uLit!.value = this.light.enabled;
+    }
     if (this.built === this.state.version) return;
     this.built = this.state.version;
     for (const child of [...this.group.children]) {
@@ -94,6 +107,7 @@ export class ShadedView {
       m.geometry.dispose();
       (m.material as THREE.Material).dispose();
     }
+    this.materials = [];
     const used = new Set<string>();
     for (const [layerIndex, layer] of this.state.layers.entries()) {
       if (this.state.isLayerHidden(layerIndex)) continue;
@@ -131,7 +145,7 @@ export class ShadedView {
   }
 
   private material(s: Surface, used: Set<string>): THREE.ShaderMaterial {
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       uniforms: {
         uColor: { value: new THREE.Vector3(...paletteColor01(this.state.palette, s.colorIndex)) }, // used as authored: no colour-space conversion
         uKey: { value: s.transparent },
@@ -140,12 +154,15 @@ export class ShadedView {
         uLuminosity: { value: s.luminosity },
         uSpecular: { value: s.specular },
         uShininess: { value: Math.pow(2, 2 + s.glossiness * 8) },
-        uLight: { value: LIGHT_DIRECTION },
+        uLight: { value: new THREE.Vector3(...lightDirection(this.light)) },
+        uLit: { value: this.light.enabled },
         uAmbient: { value: AMBIENT },
       },
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
       side: s.doubleSided ? THREE.DoubleSide : THREE.FrontSide, // LightWave surfaces are single-sided by default
     });
+    this.materials.push(material);
+    return material;
   }
 }

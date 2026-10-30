@@ -88,6 +88,7 @@ export function createFileActions(
       state.loadLayers(project.layers, project.activeLayer, { palette: project.palette, images: project.images });
       display.mode = project.display.mode;
       Object.assign(display.retro, project.display.retro);
+      Object.assign(display.light, project.display.light);
       if (project.editor) editor.apply(project.editor);
       if (!options.untitled) fileName = name.toLowerCase().endsWith(EXTENSION) ? name : name + EXTENSION;
       savedRevision = state.history.revision;

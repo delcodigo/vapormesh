@@ -13,7 +13,7 @@ import {
   type Vec3,
 } from '@/core';
 import { LAYER_COUNT, type SelectMode } from '@/modeler';
-import { defaultRetro, type DisplaySettings, type RetroOptions, type ViewMode } from '@/render/retro';
+import { defaultLight, defaultRetro, type DisplaySettings, type LightSettings, type RetroOptions, type ViewMode } from '@/render/retro';
 import type { ViewState } from '@/render/viewState';
 import type { ViewKind } from '@/render/viewport';
 
@@ -91,7 +91,7 @@ export function encodeProject({ layers, activeLayer, display, palette, images, e
       layers: headers,
       palette: true,
       images: imageHeaders,
-      display: { mode: display.mode, retro: display.retro },
+      display: { mode: display.mode, retro: display.retro, light: display.light },
       editor,
     }),
   );
@@ -182,7 +182,13 @@ function parseDisplay(raw: unknown): DisplaySettings {
     dither: clamp(num(r.dither, defaultRetro.dither), 0, 1),
     usePalette: typeof r.usePalette === 'boolean' ? r.usePalette : defaultRetro.usePalette,
   };
-  return { mode: VIEW_MODES.includes(d.mode as ViewMode) ? (d.mode as ViewMode) : 'wire', retro };
+  const l = isObject(d.light) ? d.light : {};
+  const light: LightSettings = {
+    enabled: typeof l.enabled === 'boolean' ? l.enabled : defaultLight.enabled,
+    azimuth: clamp(num(l.azimuth, defaultLight.azimuth), -180, 180),
+    elevation: clamp(num(l.elevation, defaultLight.elevation), -90, 90),
+  };
+  return { mode: VIEW_MODES.includes(d.mode as ViewMode) ? (d.mode as ViewMode) : 'wire', retro, light };
 }
 
 const finiteVec3 = (v: unknown): Vec3 | null =>

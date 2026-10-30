@@ -84,6 +84,15 @@ describe('project file', () => {
     expect(back.layers).toEqual([]);
   });
 
+  it('keeps the light, and clamps one that is out of range', () => {
+    const display = defaultDisplay();
+    Object.assign(display.light, { enabled: false, azimuth: 90, elevation: -20 });
+    const back = decodeProject(encodeProject({ layers: [], activeLayer: 0, display, palette: defaultPalette(), images: [] }));
+    expect(back.display.light).toEqual({ enabled: false, azimuth: 90, elevation: -20 });
+    display.light.elevation = 500;
+    expect(decodeProject(encodeProject({ layers: [], activeLayer: 0, display, palette: defaultPalette(), images: [] })).display.light.elevation).toBe(90);
+  });
+
   it('rejects files that are not projects, are truncated or are from a newer version', () => {
     const good = encodeProject(sample());
     expect(() => decodeProject(new ArrayBuffer(4))).toThrow(ProjectFormatError);

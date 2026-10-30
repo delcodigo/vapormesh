@@ -402,7 +402,7 @@ const paletteEditor = createPaletteEditor(state, workspace, () => paletteButton.
 const arrayPanel = createArrayPanel(state, workspace, () => arrayButton.classList.toggle('active', arrayPanel.isOpen()));
 const mirrorPanel = createMirrorPanel(state, workspace, () => mirrorButton.classList.toggle('active', mirrorPanel.isOpen()));
 const booleanPanel = createBooleanPanel(state, workspace, () => booleanButton.classList.toggle('active', booleanPanel.isOpen()));
-const renderSettings = createRenderPanel(display.retro, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
+const renderSettings = createRenderPanel(display.retro, display.light, workspace, () => state.palette, () => renderButton.classList.toggle('active', renderSettings.isOpen()));
 
 const message = app.querySelector<HTMLElement>('.message')!;
 let messageTimer = 0;
@@ -664,7 +664,7 @@ const viewports = [...document.querySelectorAll<HTMLCanvasElement>('.viewport ca
   });
   const view = new MeshView(state);
   vp.scene.add(view.group);
-  const shaded = vp.kind === 'perspective' ? new ShadedView(state) : null;
+  const shaded = vp.kind === 'perspective' ? new ShadedView(state, display.light) : null;
   if (shaded) {
     vp.shadedScene.add(shaded.group);
     vp.display = display;
